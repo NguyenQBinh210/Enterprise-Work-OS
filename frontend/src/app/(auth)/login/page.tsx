@@ -1,12 +1,43 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const { t } = useLanguage();
+    const router = useRouter();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault(); // Ngăn trang bị reload
+        setLoading(true);
+        setError(null);
+
+        // Khởi tạo Supabase Client
+        const supabase = createClient();
+        
+        // Gọi API Đăng nhập
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            setError(error.message); // Hiển thị lỗi (ví dụ: Sai mật khẩu)
+            setLoading(false);
+        } else {
+            // Đăng nhập thành công, chuyển trang mượt mà
+            router.push('/dashboard/projects');
+        }
+    };
 
     return (
         <div className="space-y-6 animate-slide-up">
@@ -15,12 +46,33 @@ export default function LoginPage() {
                 <p className="text-slate-500">{t('auth.enter_credentials')}</p>
             </div>
 
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleLogin}>
+                {/* Thông báo lỗi nếu đăng nhập thất bại */}
+                {error && (
+                    <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200 delay-100 animate-slide-up">
+                        {error}
+                    </div>
+                )}
+                
                 <div className="space-y-2 delay-100 animate-slide-up" style={{ animationFillMode: 'both' }}>
-                    <Input label={t('auth.email')} type="email" placeholder="john@example.com" />
+                    <Input 
+                        label={t('auth.email')} 
+                        type="email" 
+                        placeholder="admin@work.os" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
                 </div>
                 <div className="space-y-2 delay-200 animate-slide-up" style={{ animationFillMode: 'both' }}>
-                    <Input label={t('auth.password')} type="password" placeholder="••••••••" />
+                    <Input 
+                        label={t('auth.password')} 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
                 </div>
 
                 <div className="flex items-center justify-between text-sm delay-300 animate-slide-up" style={{ animationFillMode: 'both' }}>
@@ -34,11 +86,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="pt-2 delay-300 animate-slide-up" style={{ animationFillMode: 'both' }}>
-                    <Link href="/dashboard" className="block w-full">
-                        <Button className="w-full h-11 text-base shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow">
-                            {t('auth.sign_in')}
-                        </Button>
-                    </Link>
+                    <Button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full h-11 text-base shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow disabled:opacity-50"
+                    >
+                        {loading ? 'Đang xác thực...' : t('auth.sign_in')}
+                    </Button>
                 </div>
             </form>
 

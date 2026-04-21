@@ -1,11 +1,38 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 // import { Home, Folder, Settings, Box } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Sidebar() {
   const { t } = useLanguage();
+  const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+      const loadProfile = async (session: any) => {
+          if (session?.user) {
+              const { data } = await supabase.from('Users').select('*').eq('Email', session.user.email).single();
+              setUser(data);
+          } else {
+              setUser(null);
+          }
+      };
+
+      // 1. Tải lần đầu
+      supabase.auth.getSession().then(({ data: { session } }) => {
+          loadProfile(session);
+      });
+
+      // 2. Tự động lắng nghe mỗi khi Đăng nhập / Đăng xuất
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          setTimeout(() => loadProfile(session), 500);
+      });
+
+      return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800 shadow-xl z-50">
@@ -126,6 +153,16 @@ export default function Sidebar() {
             </Link>
 
             <Link
+              href="/dashboard/meetings"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white group"
+            >
+              <svg className="w-5 h-5 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span className="font-medium">{t('common.meetings')}</span>
+            </Link>
+
+            <Link
               href="/dashboard/team"
               className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white group"
             >
@@ -171,11 +208,11 @@ export default function Sidebar() {
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-            QB
+            {user ? user.FullName.charAt(0).toUpperCase() : '?'}
           </div>
           <div>
-            <p className="text-sm font-medium text-white">Quốc Bình</p>
-            <p className="text-xs text-slate-400">{t('common.senior_dev')}</p>
+            <p className="text-sm font-medium text-white">{user ? user.FullName : 'Đang tải...'}</p>
+            <p className="text-xs text-slate-400">{user ? user.SystemRole : ''}</p>
           </div>
         </div>
       </div>

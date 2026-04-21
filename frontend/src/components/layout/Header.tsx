@@ -1,6 +1,37 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Header() {
+    const supabase = createClient();
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        const loadProfile = async (session: any) => {
+            if (session?.user) {
+                const { data } = await supabase.from('Users').select('*').eq('Email', session.user.email).single();
+                setUser(data);
+            } else {
+                setUser(null);
+            }
+        };
+
+        // 1. Tải lần đầu
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            loadProfile(session);
+        });
+
+        // 2. Tự động lắng nghe mỗi khi Đăng nhập / Đăng xuất
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            // Đợi 1 chút xíu (500ms) để đề phòng lúc Đăng ký, hàm insert Users chạy chưa xong
+            setTimeout(() => loadProfile(session), 500);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
     return (
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 fixed top-0 right-0 left-0 md:left-64 z-40 px-6 flex items-center justify-between">
             {/* Project Info */}
@@ -25,9 +56,11 @@ export default function Header() {
                 </button>
                 <div className="h-8 w-px bg-slate-200 mx-1"></div>
                 <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                    <span className="text-sm font-medium text-slate-700 hidden sm:block">Quốc Bình</span>
-                    <div className="w-9 h-9 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+                    <span className="text-sm font-medium text-slate-700 hidden sm:block">
+                        {user ? user.FullName : 'Đang tải...'}
+                    </span>
+                    <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold border-2 border-white shadow-sm overflow-hidden">
+                        {user ? user.FullName.charAt(0).toUpperCase() : '?'}
                     </div>
                 </div>
             </div>
