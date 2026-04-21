@@ -11,6 +11,9 @@ export default function MessagesPage() {
     const [activeChat, setActiveChat] = useState<string | null>(null);
     const [messages, setMessages] = useState<any[]>([]);
     const [inputValue, setInputValue] = useState('');
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // 1. Tải thông tin của người đang đăng nhập
@@ -93,27 +96,29 @@ export default function MessagesPage() {
         // KÍCH HOẠT SUPABASE REAL-TIME (Tự nảy tin nhắn không cần F5)
         const channel = supabase.channel('realtime:private_messages')
             .on('postgres_changes', { 
-                event: 'INSERT', 
+                event: '*', 
                 schema: 'public', 
                 table: 'PrivateMessages' 
             }, (payload) => {
-                const newMsg = payload.new;
+                if (payload.eventType === 'INSERT') {
+                    const newMsg = payload.new;
+                    if (newMsg.ReceiverId === currentUser.Id) playNotificationSound();
+                    if ((newMsg.SenderId === currentUser.Id && newMsg.ReceiverId === activeChat) || (newMsg.SenderId === activeChat && newMsg.ReceiverId === currentUser.Id)) {
+                        setMessages((prev) => {
+                            if (prev.some(m => m.Id === newMsg.Id)) return prev;
+                            return [...prev, newMsg];
+                        });
+                    }
+                }
                 
-                // Nếu mình là người nhận tin nhắn này -> Phát âm thanh thông báo
-                if (newMsg.ReceiverId === currentUser.Id) {
-                    playNotificationSound();
+                if (payload.eventType === 'UPDATE') {
+                    const updatedMsg = payload.new;
+                    setMessages(prev => prev.map(m => m.Id === updatedMsg.Id ? updatedMsg : m));
                 }
 
-                // Kiểm tra xem tin nhắn mới nảy lên có thuộc về đoạn chat hiện tại không
-                if (
-                    (newMsg.SenderId === currentUser.Id && newMsg.ReceiverId === activeChat) ||
-                    (newMsg.SenderId === activeChat && newMsg.ReceiverId === currentUser.Id)
-                ) {
-                    setMessages((prev) => {
-                        // Ngăn chặn trùng lặp tin nhắn nếu máy mình đã tự hiện trước đó
-                        if (prev.some(m => m.Id === newMsg.Id)) return prev;
-                        return [...prev, newMsg];
-                    });
+                if (payload.eventType === 'DELETE') {
+                    const deletedMsg = payload.old;
+                    setMessages(prev => prev.filter(m => m.Id !== deletedMsg.Id));
                 }
             })
             .subscribe();
@@ -155,6 +160,25 @@ export default function MessagesPage() {
             ReceiverId: activeChat,
             Content: text
         });
+    };
+
+    // 5. Hàm Xóa tin nhắn
+    const handleDeleteMessage = async (msgId: string) => {
+        // Optimistic delete: Ẩn luôn trên màn hình của mình cho nhanh
+        setMessages(prev => prev.filter(m => m.Id !== msgId));
+        await supabase.from('PrivateMessages').delete().eq('Id', msgId);
+    };
+
+    // 6. Hàm Cập nhật tin nhắn
+    const handleUpdateMessage = async (e: React.FormEvent, msgId: string) => {
+        e.preventDefault();
+        if (!editValue.trim()) return;
+        
+        // Optimistic update: Đổi chữ luôn trên màn hình
+        setMessages(prev => prev.map(m => m.Id === msgId ? { ...m, Content: editValue } : m));
+        setEditingMessageId(null); // Tắt chế độ sửa
+
+        await supabase.from('PrivateMessages').update({ Content: editValue }).eq('Id', msgId);
     };
 
     if (!currentUser) {
@@ -247,12 +271,45 @@ export default function MessagesPage() {
                                     
                                     return (
                                         <div key={msg.Id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-4' : ''}`}>
-                                            <div className={`max-w-[65%] px-5 py-3 text-[15px] shadow-sm ${
+                                            <div className={`group relative max-w-[65%] px-5 py-3 text-[15px] shadow-sm ${
                                                 isMe 
                                                     ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm' 
                                                     : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm'
                                             }`}>
-                                                {msg.Content}
+                                                {editingMessageId === msg.Id ? (
+                                                    <form onSubmit={(e) => handleUpdateMessage(e, msg.Id)} className="flex items-center gap-2">
+                                                        <input 
+                                                            autoFocus
+                                                            className="text-slate-900 px-3 py-1.5 rounded-lg text-sm w-full outline-none shadow-inner"
+                                                            value={editValue}
+                                                            onChange={e => setEditValue(e.target.value)}
+                                                        />
+                                                        <button type="button" onClick={() => setEditingMessageId(null)} className="text-xs text-white/80 hover:text-white font-medium bg-blue-700/50 px-2 py-1.5 rounded-md">Hủy</button>
+                                                        <button type="submit" className="text-xs text-blue-600 hover:text-blue-700 font-bold bg-white px-3 py-1.5 rounded-md shadow-sm">Lưu</button>
+                                                    </form>
+                                                ) : (
+                                                    <>
+                                                        <div className="break-words">{msg.Content}</div>
+                                                        {isMe && (
+                                                            <div className="hidden group-hover:flex absolute top-1 -left-16 gap-1 bg-white shadow-md border border-slate-100 rounded-lg p-1 animate-fade-in z-10">
+                                                                <button 
+                                                                    onClick={() => { setEditingMessageId(msg.Id); setEditValue(msg.Content); }} 
+                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
+                                                                    title="Sửa tin nhắn"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => setDeletingMessageId(msg.Id)} 
+                                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" 
+                                                                    title="Thu hồi tin nhắn"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -292,6 +349,38 @@ export default function MessagesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Modal Xác nhận Xóa Tin Nhắn */}
+            {deletingMessageId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-xl w-[400px] overflow-hidden animate-slide-up border border-slate-100">
+                        <div className="p-6">
+                            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600 mb-4 border border-red-100">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900">Xóa tin nhắn này?</h3>
+                            <p className="text-[15px] text-slate-500 mt-2 leading-relaxed">Tin nhắn này sẽ bị xóa vĩnh viễn khỏi cuộc trò chuyện của cả hai người. Hành động này không thể hoàn tác.</p>
+                        </div>
+                        <div className="bg-slate-50 px-6 py-4 flex justify-end gap-3">
+                            <button 
+                                onClick={() => setDeletingMessageId(null)} 
+                                className="px-5 py-2.5 rounded-xl text-[15px] font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    handleDeleteMessage(deletingMessageId);
+                                    setDeletingMessageId(null);
+                                }} 
+                                className="px-5 py-2.5 rounded-xl text-[15px] font-bold text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-600/20 active:scale-95 transition-all"
+                            >
+                                Xóa vĩnh viễn
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
