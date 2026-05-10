@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { MOCK_USERS, User } from '@/lib/mock';
 import { Button } from '@/components/ui/Button';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export default function SettingsPage() {
+    const { t } = useLanguage();
     const [users, setUsers] = useState<User[]>(MOCK_USERS);
 
     const handleRoleChange = (userId: string, newRole: User['role']) => {
@@ -18,13 +20,13 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-                    <p className="text-slate-500 mt-1">Manage workspace members and permissions.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('settings_page.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('settings_page.subtitle')}</p>
                 </div>
-                <Button>Invite Member</Button>
+                <Button>{t('settings_page.invite_member')}</Button>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -32,10 +34,10 @@ export default function SettingsPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">User</th>
-                                <th className="px-6 py-4 font-semibold">Role</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                <th className="px-6 py-4 font-semibold">{t('settings_page.user')}</th>
+                                <th className="px-6 py-4 font-semibold">{t('settings_page.role')}</th>
+                                <th className="px-6 py-4 font-semibold">{t('settings_page.status')}</th>
+                                <th className="px-6 py-4 font-semibold text-right">{t('settings_page.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -56,16 +58,16 @@ export default function SettingsPage() {
                                             onChange={(e) => handleRoleChange(user.id, e.target.value as User['role'])}
                                             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-24 p-1.5 outline-none"
                                         >
-                                            <option value="Admin">Admin</option>
-                                            <option value="Editor">Editor</option>
-                                            <option value="Viewer">Viewer</option>
+                                            <option value="Admin">{t('settings_page.admin')}</option>
+                                            <option value="Editor">{t('settings_page.editor')}</option>
+                                            <option value="Viewer">{t('settings_page.viewer')}</option>
                                         </select>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold
                                     ${user.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}
                                         >
-                                            {user.status}
+                                            {user.status === 'Active' ? t('settings_page.active') : t('settings_page.disabled')}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
@@ -77,7 +79,7 @@ export default function SettingsPage() {
                                                         ? 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                                         : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}`}
                                             >
-                                                {user.status === 'Active' ? 'Disable' : 'Enable'}
+                                                {user.status === 'Active' ? t('settings_page.disable') : t('settings_page.enable')}
                                             </button>
                                             <button className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50">
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

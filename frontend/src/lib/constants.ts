@@ -1,4 +1,4 @@
-export const APP_NAME = 'Enterprise WorkOS';
+export const APP_NAME = 'Enterprise TaskFlow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 export const NAVIGATION_ITEMS = [
