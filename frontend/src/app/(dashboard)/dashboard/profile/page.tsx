@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
 import { Camera, Trash2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { uploadImage, deleteImage } from '@/actions/media.actions';
 
 export default function ProfilePage() {
     const { t } = useLanguage();
@@ -139,7 +140,6 @@ export default function ProfilePage() {
                 const base64data = reader.result as string;
                 
                 try {
-                    const { uploadImage } = await import('@/actions/media.actions');
                     const result = await uploadImage(base64data, 'avatars');
 
                     if (result?.url) {
@@ -177,7 +177,6 @@ export default function ProfilePage() {
             setUploading(true);
             try {
                 // 1. Xóa trên Cloudinary qua Server Action
-                const { deleteImage } = await import('@/actions/media.actions');
                 await deleteImage(avatarUrl);
 
                 // 2. Cập nhật Database

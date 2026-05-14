@@ -17,8 +17,12 @@ import {
     ArrowLeft,
     ImageIcon,
     X,
-    Loader2
+    Loader2,
+    Trash2,
+    Pencil
 } from 'lucide-react';
+import { uploadImage, deleteImage } from '@/actions/media.actions';
+import { toast } from 'sonner';
 
 // Preset wallpaper options
 const WALLPAPER_PRESETS = [
@@ -45,11 +49,13 @@ export default function MessagesPage() {
     const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const wallpaperInputRef = useRef<HTMLInputElement>(null);
+    const chatImageInputRef = useRef<HTMLInputElement>(null);
 
     // Wallpaper state
     const [showWallpaperPanel, setShowWallpaperPanel] = useState(false);
     const [wallpaper, setWallpaper] = useState<{ id: string; style?: any; url?: string }>(WALLPAPER_PRESETS[0]);
     const [uploadingWallpaper, setUploadingWallpaper] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Load wallpaper from localStorage when chat changes
@@ -73,14 +79,13 @@ export default function MessagesPage() {
     const handleWallpaperImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 3 * 1024 * 1024) { alert('Ảnh phải nhỏ hơn 3MB!'); return; }
+        if (file.size > 3 * 1024 * 1024) { toast.error('Ảnh quá nặng! Vui lòng chọn ảnh dưới 3MB.'); return; }
         setUploadingWallpaper(true);
         try {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                const { uploadImage } = await import('@/actions/media.actions');
                 const result = await uploadImage(base64, 'chat_wallpapers');
                 if (result?.url) {
                     saveWallpaper({ id: 'custom', url: result.url, style: { backgroundImage: `url(${result.url})`, backgroundSize: 'cover', backgroundPosition: 'center' } });
@@ -88,6 +93,43 @@ export default function MessagesPage() {
                 setUploadingWallpaper(false);
             };
         } catch { setUploadingWallpaper(false); }
+    };
+
+    const handleChatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !currentUser || !activeChat) return;
+        if (file.size > 3 * 1024 * 1024) { toast.error('Ảnh quá nặng! Vui lòng chọn ảnh dưới 3MB.'); return; }
+        
+        setUploadingImage(true);
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = async () => {
+                const base64 = reader.result as string;
+                const result = await uploadImage(base64, 'chat_images');
+                if (result?.url) {
+                    const newMsgId = 'msg_' + Math.random().toString(36).substring(2, 8);
+                    const text = `[IMAGE]${result.url}`;
+                    const optimisticMsg = {
+                        Id: newMsgId,
+                        SenderId: currentUser.Id,
+                        ReceiverId: activeChat,
+                        Content: text,
+                        CreatedAt: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, optimisticMsg]);
+                    await supabase.from('PrivateMessages').insert({
+                        Id: newMsgId,
+                        SenderId: currentUser.Id,
+                        ReceiverId: activeChat,
+                        Content: text
+                    });
+                }
+                setUploadingImage(false);
+                // Reset file input
+                if (chatImageInputRef.current) chatImageInputRef.current.value = '';
+            };
+        } catch { setUploadingImage(false); }
     };
 
     // 1. Tải thông tin người dùng hiện tại
@@ -230,7 +272,21 @@ export default function MessagesPage() {
     };
 
     const handleDeleteMessage = async (msgId: string) => {
+        const msg = messages.find(m => m.Id === msgId);
+        if (!msg) return;
+
+        // 1. Xóa khỏi giao diện ngay lập tức (Cực mượt)
         setMessages(prev => prev.filter(m => m.Id !== msgId));
+        toast.success("Đã xóa tin nhắn");
+        
+        // 2. Xử lý ngầm (Background)
+        if (msg.Content?.startsWith('[IMAGE]')) {
+            const imgUrl = msg.Content.replace('[IMAGE]', '');
+            try {
+                await deleteImage(imgUrl);
+            } catch (e) {}
+        }
+        
         await supabase.from('PrivateMessages').delete().eq('Id', msgId);
     };
 
@@ -528,13 +584,37 @@ export default function MessagesPage() {
                                                 {!isMe && isConsecutive && <div className="w-8 shrink-0" />}
                                                 
                                                 <div className="relative">
-                                                    <div className={`px-5 py-3.5 text-[15px] font-medium shadow-sm transition-all ${
-                                                        isMe 
-                                                            ? 'bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-[0.25rem] shadow-indigo-100' 
-                                                            : 'bg-white text-slate-700 rounded-[1.5rem] rounded-tl-[0.25rem] border border-slate-100'
-                                                    }`}>
-                                                        {msg.Content}
-                                                    </div>
+                                                    {(() => {
+                                                        const isImg = msg.Content?.startsWith('[IMAGE]');
+                                                        const imgUrl = isImg ? msg.Content.replace('[IMAGE]', '') : '';
+                                                        return (
+                                                            <div className={`${isImg ? 'p-1' : 'px-5 py-3.5'} text-[15px] font-medium shadow-sm transition-all ${
+                                                                isMe 
+                                                                    ? (isImg ? 'bg-indigo-50 rounded-[1.5rem] rounded-tr-[0.25rem]' : 'bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-[0.25rem] shadow-indigo-100') 
+                                                                    : (isImg ? 'bg-slate-50 rounded-[1.5rem] rounded-tl-[0.25rem]' : 'bg-white text-slate-700 rounded-[1.5rem] rounded-tl-[0.25rem] border border-slate-100')
+                                                            }`}>
+                                                                {isImg ? (
+                                                                    <img src={imgUrl} alt="attached image" className="max-w-[200px] md:max-w-[280px] max-h-[300px] rounded-[1.25rem] object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(imgUrl, '_blank')} />
+                                                                ) : (
+                                                                    editingMessageId === msg.Id ? (
+                                                                        <form onSubmit={(e) => handleUpdateMessage(e, msg.Id)} className="flex items-center gap-1.5">
+                                                                            <input 
+                                                                                type="text" 
+                                                                                value={editValue} 
+                                                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                                                className="px-2.5 py-1 text-slate-800 bg-white/90 rounded-lg text-[14px] outline-none min-w-[150px] border border-white focus:ring-2 focus:ring-white/50 transition-all shadow-inner"
+                                                                                autoFocus
+                                                                            />
+                                                                            <button type="submit" className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Lưu"><Check size={14} strokeWidth={3} /></button>
+                                                                            <button type="button" onClick={() => setEditingMessageId(null)} className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Hủy"><X size={14} strokeWidth={3} /></button>
+                                                                        </form>
+                                                                    ) : (
+                                                                        msg.Content
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     
                                                     {/* Reactions Mockup */}
                                                     {index === messages.length - 2 && (
@@ -548,7 +628,10 @@ export default function MessagesPage() {
 
                                                 {isMe && (
                                                     <div className="hidden group-hover:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => { setEditingMessageId(msg.Id); setEditValue(msg.Content); }} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg"><MoreVertical size={14} /></button>
+                                                        {!msg.Content?.startsWith('[IMAGE]') && (
+                                                            <button onClick={() => { setEditingMessageId(msg.Id); setEditValue(msg.Content); }} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg" title="Sửa tin nhắn"><Pencil size={14} /></button>
+                                                        )}
+                                                        <button onClick={() => handleDeleteMessage(msg.Id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg" title="Xóa tin nhắn"><Trash2 size={14} /></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -574,7 +657,24 @@ export default function MessagesPage() {
                                 />
                                 <div className="flex items-center gap-1 pr-1">
                                     <button type="button" className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Smile size={20} /></button>
-                                    <button type="button" className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Paperclip size={20} /></button>
+                                    
+                                    <input 
+                                        type="file" 
+                                        ref={chatImageInputRef} 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={handleChatImageUpload} 
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={() => chatImageInputRef.current?.click()}
+                                        disabled={uploadingImage}
+                                        className={`p-2 transition-colors ${uploadingImage ? 'text-indigo-400 animate-pulse' : 'text-slate-400 hover:text-indigo-600'}`}
+                                        title="Gửi ảnh đính kèm"
+                                    >
+                                        {uploadingImage ? <Loader2 size={20} className="animate-spin" /> : <Paperclip size={20} />}
+                                    </button>
+
                                     <button 
                                         type="submit" 
                                         disabled={!inputValue.trim()}
