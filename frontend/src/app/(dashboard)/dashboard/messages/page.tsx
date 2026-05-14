@@ -95,10 +95,12 @@ export default function MessagesPage() {
         } catch { setUploadingWallpaper(false); }
     };
 
-    const handleChatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !currentUser || !activeChat) return;
-        if (file.size > 3 * 1024 * 1024) { toast.error('Ảnh quá nặng! Vui lòng chọn ảnh dưới 3MB.'); return; }
+        
+        // Giới hạn 5MB cho tài liệu
+        if (file.size > 5 * 1024 * 1024) { toast.error('File quá nặng! Vui lòng chọn file dưới 5MB.'); return; }
         
         setUploadingImage(true);
         try {
@@ -106,10 +108,16 @@ export default function MessagesPage() {
             reader.readAsDataURL(file);
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                const result = await uploadImage(base64, 'chat_images');
+                const result = await uploadImage(base64, 'chat_files');
                 if (result?.url) {
+                    const isImage = file.type.startsWith('image/');
                     const newMsgId = 'msg_' + Math.random().toString(36).substring(2, 8);
-                    const text = `[IMAGE]${result.url}`;
+                    
+                    // Nếu là file, lưu theo định dạng [FILE]url|filename
+                    const text = isImage 
+                        ? `[IMAGE]${result.url}` 
+                        : `[FILE]${result.url}|${file.name}`;
+
                     const optimisticMsg = {
                         Id: newMsgId,
                         SenderId: currentUser.Id,
@@ -126,7 +134,6 @@ export default function MessagesPage() {
                     });
                 }
                 setUploadingImage(false);
-                // Reset file input
                 if (chatImageInputRef.current) chatImageInputRef.current.value = '';
             };
         } catch { setUploadingImage(false); }
@@ -281,10 +288,11 @@ export default function MessagesPage() {
         toast.success("Đã xóa tin nhắn");
         
         // 2. Xử lý ngầm (Background)
-        if (msg.Content?.startsWith('[IMAGE]')) {
-            const imgUrl = msg.Content.replace('[IMAGE]', '');
+        if (msg.Content?.startsWith('[IMAGE]') || msg.Content?.startsWith('[FILE]')) {
+            const parts = msg.Content.split(']');
+            const urlPart = parts[1].split('|')[0];
             try {
-                await deleteImage(imgUrl);
+                await deleteImage(urlPart);
             } catch (e) {}
         }
         
@@ -610,31 +618,68 @@ export default function MessagesPage() {
                                                 <div className="relative">
                                                     {(() => {
                                                         const isImg = msg.Content?.startsWith('[IMAGE]');
-                                                        const imgUrl = isImg ? msg.Content.replace('[IMAGE]', '') : '';
-                                                        return (
-                                                            <div className={`${isImg ? 'p-1' : 'px-5 py-3.5'} text-[15px] font-medium shadow-sm transition-all ${
-                                                                isMe 
-                                                                    ? (isImg ? 'bg-indigo-50 rounded-[1.5rem] rounded-tr-[0.25rem]' : 'bg-indigo-600 text-white rounded-[1.5rem] rounded-tr-[0.25rem] shadow-indigo-100') 
-                                                                    : (isImg ? 'bg-slate-50 rounded-[1.5rem] rounded-tl-[0.25rem]' : 'bg-white text-slate-700 rounded-[1.5rem] rounded-tl-[0.25rem] border border-slate-100')
-                                                            }`}>
-                                                                {isImg ? (
+                                                        const isFile = msg.Content?.startsWith('[FILE]');
+                                                        
+                                                        if (isImg) {
+                                                            const imgUrl = msg.Content.replace('[IMAGE]', '');
+                                                            return (
+                                                                <div className="p-1 bg-indigo-50/50 rounded-[1.5rem] overflow-hidden shadow-sm">
                                                                     <img src={imgUrl} alt="attached image" className="max-w-[200px] md:max-w-[280px] max-h-[300px] rounded-[1.25rem] object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(imgUrl, '_blank')} />
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        if (isFile) {
+                                                            const fileData = msg.Content.replace('[FILE]', '').split('|');
+                                                            const fileUrl = fileData[0];
+                                                            const fileName = fileData[1] || 'document.pdf';
+                                                            const downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
+                                                            
+                                                            return (
+                                                                <div className={`px-5 py-4 flex items-center gap-4 rounded-2xl border shadow-sm transition-all hover:shadow-md ${
+                                                                    isMe ? 'bg-indigo-700 border-indigo-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+                                                                }`}>
+                                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
+                                                                        isMe ? 'bg-indigo-600' : 'bg-slate-100 text-slate-500'
+                                                                    }`}>
+                                                                        <Paperclip size={24} />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0 pr-4">
+                                                                        <p className="text-sm font-bold truncate leading-tight mb-1">{fileName}</p>
+                                                                        <p className={`text-[10px] font-black uppercase tracking-widest ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>Tài liệu đính kèm</p>
+                                                                    </div>
+                                                                    <a 
+                                                                        href={downloadUrl} 
+                                                                        download={fileName}
+                                                                        className={`p-2.5 rounded-xl transition-all active:scale-90 ${
+                                                                            isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'
+                                                                        }`}
+                                                                        title="Tải về"
+                                                                    >
+                                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                        </svg>
+                                                                    </a>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div className={`${isMe ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-white text-slate-700 border border-slate-100'} px-5 py-3.5 text-[15px] font-medium shadow-sm transition-all rounded-[1.5rem] ${isMe ? 'rounded-tr-[0.25rem]' : 'rounded-tl-[0.25rem]'}`}>
+                                                                {editingMessageId === msg.Id ? (
+                                                                    <form onSubmit={(e) => handleUpdateMessage(e, msg.Id)} className="flex items-center gap-1.5">
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={editValue} 
+                                                                            onChange={(e) => setEditValue(e.target.value)} 
+                                                                            className="px-2.5 py-1 text-slate-800 bg-white/90 rounded-lg text-[14px] outline-none min-w-[150px] border border-white focus:ring-2 focus:ring-white/50 transition-all shadow-inner"
+                                                                            autoFocus
+                                                                        />
+                                                                        <button type="submit" className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Lưu"><Check size={14} strokeWidth={3} /></button>
+                                                                        <button type="button" onClick={() => setEditingMessageId(null)} className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Hủy"><X size={14} strokeWidth={3} /></button>
+                                                                    </form>
                                                                 ) : (
-                                                                    editingMessageId === msg.Id ? (
-                                                                        <form onSubmit={(e) => handleUpdateMessage(e, msg.Id)} className="flex items-center gap-1.5">
-                                                                            <input 
-                                                                                type="text" 
-                                                                                value={editValue} 
-                                                                                onChange={(e) => setEditValue(e.target.value)} 
-                                                                                className="px-2.5 py-1 text-slate-800 bg-white/90 rounded-lg text-[14px] outline-none min-w-[150px] border border-white focus:ring-2 focus:ring-white/50 transition-all shadow-inner"
-                                                                                autoFocus
-                                                                            />
-                                                                            <button type="submit" className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Lưu"><Check size={14} strokeWidth={3} /></button>
-                                                                            <button type="button" onClick={() => setEditingMessageId(null)} className="p-1.5 text-white hover:bg-white/20 rounded-md transition-colors" title="Hủy"><X size={14} strokeWidth={3} /></button>
-                                                                        </form>
-                                                                    ) : (
-                                                                        msg.Content
-                                                                    )
+                                                                    msg.Content
                                                                 )}
                                                             </div>
                                                         );
@@ -652,7 +697,7 @@ export default function MessagesPage() {
 
                                                 {isMe && (
                                                     <div className="hidden group-hover:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {!msg.Content?.startsWith('[IMAGE]') && (
+                                                        {(!msg.Content?.startsWith('[IMAGE]') && !msg.Content?.startsWith('[FILE]')) && (
                                                             <button onClick={() => { setEditingMessageId(msg.Id); setEditValue(msg.Content); }} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg" title="Sửa tin nhắn"><Pencil size={14} /></button>
                                                         )}
                                                         <button onClick={() => handleDeleteMessage(msg.Id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg" title="Xóa tin nhắn"><Trash2 size={14} /></button>
@@ -685,9 +730,9 @@ export default function MessagesPage() {
                                     <input 
                                         type="file" 
                                         ref={chatImageInputRef} 
-                                        accept="image/*" 
+                                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" 
                                         className="hidden" 
-                                        onChange={handleChatImageUpload} 
+                                        onChange={handleFileUpload} 
                                     />
                                     <button 
                                         type="button" 

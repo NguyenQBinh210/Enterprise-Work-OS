@@ -167,12 +167,12 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
     setLoading(false);
   };
 
-  const handleChatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChatFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
 
-    if (file.size > 1 * 1024 * 1024) {
-        toast.error("Ảnh gửi đi phải dưới 1MB để đảm bảo tốc độ chat!");
+    if (file.size > 5 * 1024 * 1024) {
+        toast.error("File gửi đi phải dưới 5MB!");
         return;
     }
 
@@ -183,16 +183,22 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
         reader.onloadend = async () => {
             const base64data = reader.result as string;
             const { uploadImage } = await import('@/actions/media.actions');
-            const result = await uploadImage(base64data, 'chat_images');
+            const result = await uploadImage(base64data, 'task_files');
 
             if (result?.url) {
-                await handleSendMessage(undefined, result.url);
-                toast.success("Đã gửi ảnh");
+                const isImage = file.type.startsWith('image/');
+                const text = isImage 
+                    ? `[IMAGE]${result.url}` 
+                    : `[FILE]${result.url}|${file.name}`;
+                
+                await handleSendMessage(undefined, text);
+                toast.success("Đã gửi tệp tin");
             }
             setLoading(false);
+            if (chatFileInputRef.current) chatFileInputRef.current.value = "";
         };
     } catch (error: any) {
-        toast.error("Lỗi gửi ảnh: " + error.message);
+        toast.error("Lỗi gửi tệp: " + error.message);
         setLoading(false);
     }
   };
@@ -213,9 +219,11 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
 
     if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này?")) {
         try {
-            if (isImageUrl(msgToDelete.Content)) {
+            if (msgToDelete.Content?.startsWith('[IMAGE]') || msgToDelete.Content?.startsWith('[FILE]')) {
+                const parts = msgToDelete.Content.split(']');
+                const urlPart = parts[1].split('|')[0];
                 const { deleteImage } = await import('@/actions/media.actions');
-                await deleteImage(msgToDelete.Content);
+                await deleteImage(urlPart);
             }
             await deleteTaskMessage(msgId);
             setMessages(prev => prev.filter(m => m.Id !== msgId));
@@ -225,8 +233,22 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
     }
   };
 
+  const relatedFiles = useMemo(() => {
+    return messages
+        .filter(m => m.Content?.startsWith('[FILE]'))
+        .map(m => {
+            const data = m.Content.replace('[FILE]', '').split('|');
+            return {
+                url: data[0],
+                name: data[1] || 'document.pdf',
+                createdAt: m.CreatedAt,
+                sender: m.Sender?.FullName
+            };
+        });
+  }, [messages]);
+
   const isImageUrl = (url: string) => {
-    return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null || url.includes("res.cloudinary.com");
+    return url?.startsWith('[IMAGE]') || url?.match(/\.(jpeg|jpg|gif|png|webp)$/) != null || url?.includes("res.cloudinary.com");
   };
 
   const filteredMembers = members.filter(m => 
@@ -319,7 +341,6 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                 <div className="prose prose-slate max-w-none text-slate-600 mb-12 leading-relaxed text-xl font-medium">
                   {task.Description ? task.Description.split('\n').map((line: any, i: any) => <p key={i} className="mb-4">{line}</p>) : <p className="italic text-slate-400 font-normal">Chưa có mô tả chi tiết cho nhiệm vụ này.</p>}
                 </div>
-
                 <div className="border-t border-slate-100 pt-10">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -346,6 +367,47 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                     ))}
                     {assignees.length === 0 && <p className="text-sm text-slate-400 italic font-medium">Chưa có ai được giao nhiệm vụ này.</p>}
                   </div>
+                </div>
+
+                {/* TÀI LIỆU LIÊN QUAN */}
+                <div className="border-t border-slate-100 pt-10 mt-10">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                            <Paperclip className="w-4 h-4 text-amber-600" />
+                        </div>
+                        Tài liệu liên quan ({relatedFiles.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {relatedFiles.map((file, i) => {
+                            const downloadUrl = file.url.replace('/upload/', '/upload/fl_attachment/');
+                            return (
+                                <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:shadow-xl hover:border-amber-200 transition-all">
+                                    <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-amber-600 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                                        <Paperclip className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0 pr-2">
+                                        <p className="text-sm font-black text-slate-900 truncate mb-1">{file.name}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gửi bởi {file.sender}</p>
+                                    </div>
+                                    <a 
+                                        href={downloadUrl} 
+                                        download={file.name}
+                                        className="p-3 bg-white text-slate-400 hover:text-amber-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90"
+                                        title="Tải xuống tài liệu"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            );
+                        })}
+                        {relatedFiles.length === 0 && (
+                            <div className="md:col-span-2 py-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-400">
+                                <p className="text-xs font-bold uppercase tracking-widest">Chưa có tài liệu đính kèm</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
               </div>
             )}
@@ -427,13 +489,46 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                             </div>
                         ) : (
                             <div className="relative group/bubble flex items-center gap-2">
-                                {isImageUrl(msg.Content) ? (
-                                    <div className="relative group/img overflow-hidden rounded-2xl border-2 border-white shadow-xl transition-all hover:scale-[1.02] cursor-zoom-in" onClick={() => setZoomImage(msg.Content)}>
-                                        <img src={msg.Content} alt="Chat media" className="max-w-[280px] max-h-[360px] object-cover" />
+                                {msg.Content?.startsWith('[IMAGE]') ? (
+                                    <div className="relative group/img overflow-hidden rounded-2xl border-2 border-white shadow-xl transition-all hover:scale-[1.02] cursor-zoom-in" onClick={() => setZoomImage(msg.Content.replace('[IMAGE]', ''))}>
+                                        <img src={msg.Content.replace('[IMAGE]', '')} alt="Chat media" className="max-w-[280px] max-h-[360px] object-cover" />
                                         <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-all flex items-center justify-center">
                                             <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow-lg" />
                                         </div>
                                     </div>
+                                ) : msg.Content?.startsWith('[FILE]') ? (
+                                    (() => {
+                                        const fileData = msg.Content.replace('[FILE]', '').split('|');
+                                        const fileUrl = fileData[0];
+                                        const fileName = fileData[1] || 'document.pdf';
+                                        const downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
+                                        return (
+                                            <div className={`px-4 py-3 flex items-center gap-3 rounded-2xl border shadow-sm transition-all hover:shadow-md ${
+                                                msg.SenderId === currentUser?.Id ? 'bg-blue-700 border-blue-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+                                            }`}>
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
+                                                    msg.SenderId === currentUser?.Id ? 'bg-blue-600' : 'bg-slate-100 text-slate-500'
+                                                }`}>
+                                                    <Paperclip className="w-5 h-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0 pr-2">
+                                                    <p className="text-[13px] font-bold truncate leading-tight mb-0.5">{fileName}</p>
+                                                    <p className={`text-[9px] font-black uppercase tracking-widest ${msg.SenderId === currentUser?.Id ? 'text-blue-300' : 'text-slate-400'}`}>Tài liệu</p>
+                                                </div>
+                                                <a 
+                                                    href={downloadUrl} 
+                                                    download={fileName}
+                                                    className={`p-2 rounded-lg transition-all active:scale-90 ${
+                                                        msg.SenderId === currentUser?.Id ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-600'
+                                                    }`}
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        );
+                                    })()
                                 ) : (
                                     <div className={`px-5 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${msg.SenderId === currentUser?.Id ? "bg-blue-600 text-white rounded-tr-sm" : "bg-white text-slate-700 border border-slate-100 rounded-tl-sm"}`}>
                                         {msg.Content}
@@ -443,7 +538,7 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                                 {/* Action buttons */}
                                 {msg.SenderId === currentUser?.Id && (
                                     <div className={`flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-all duration-200 ${msg.SenderId === currentUser?.Id ? "flex-row-reverse" : "flex-row"}`}>
-                                        {!isImageUrl(msg.Content) && (
+                                        {(!msg.Content?.startsWith('[IMAGE]') && !msg.Content?.startsWith('[FILE]')) && (
                                             <button onClick={() => { setEditingMsgId(msg.Id); setEditMsgContent(msg.Content); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl shadow-sm transition-all border border-transparent hover:border-slate-100">
                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                             </button>
@@ -495,7 +590,7 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                       <Send className="w-6 h-6" />
                   </button>
                 </div>
-                <input type="file" ref={chatFileInputRef} onChange={handleChatImageUpload} accept="image/*" className="hidden" />
+                <input type="file" ref={chatFileInputRef} onChange={handleChatFileUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden" />
               </form>
             )}
           </div>
