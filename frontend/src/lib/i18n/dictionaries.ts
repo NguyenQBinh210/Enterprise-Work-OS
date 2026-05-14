@@ -109,7 +109,6 @@ export const dictionaries = {
             disabled: 'Disabled',
             disable: 'Disable',
             enable: 'Enable',
-            enable: 'Enable',
         },
         profile: {
             title: 'Profile',
@@ -248,7 +247,6 @@ export const dictionaries = {
             active: 'Hoạt động',
             disabled: 'Vô hiệu',
             disable: 'Vô hiệu hóa',
-            enable: 'Kích hoạt',
             enable: 'Kích hoạt',
         },
         profile: {
