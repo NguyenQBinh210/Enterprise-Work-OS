@@ -170,7 +170,8 @@ export default function MessagesPage() {
                 });
                 
                 setUsers(usersWithAvatars);
-                if (!activeChat) {
+                // Chỉ tự động chọn chat trên desktop (màn hình rộng)
+                if (!activeChat && typeof window !== 'undefined' && window.innerWidth >= 1024) {
                     setActiveChat(usersWithAvatars[0].Id);
                 }
             } else {
@@ -312,18 +313,26 @@ export default function MessagesPage() {
         : users;
 
     return (
-        <div className="flex h-[calc(100vh-7rem)] bg-transparent gap-5 animate-slide-up">
-            {/* LEFT SIDEBAR */}
-            <div className="w-[360px] bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 flex flex-col overflow-hidden border border-slate-100 shrink-0">
+        <div className="flex h-[calc(100vh-4rem)] w-full bg-white animate-slide-up relative overflow-hidden">
+            {/* LEFT SIDEBAR (Chat List) */}
+            <div className={`
+                absolute inset-0 lg:relative lg:inset-auto z-20
+                w-full lg:w-[360px] 
+                bg-white lg:border-r lg:border-slate-100
+                flex flex-col overflow-hidden 
+                transition-all duration-300 ease-in-out
+                ${activeChat ? '-translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100' : 'translate-x-0 opacity-100'}
+                shrink-0
+            `}>
                 {/* Header & Search */}
-                <div className="p-6 pb-2">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-black text-slate-800">Chats</h2>
-                        <div className="flex gap-2">
-                            <button className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                <div className="p-4 lg:p-6 pb-2">
+                    <div className="flex items-center justify-between mb-4 lg:mb-6">
+                        <h2 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight">Messages</h2>
+                        <div className="flex gap-1 lg:gap-2">
+                            <button className="p-2 lg:p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95">
                                 <Plus size={20} />
                             </button>
-                            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-xl transition-all">
+                            <button className="p-2 lg:p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-all">
                                 <MoreVertical size={20} />
                             </button>
                         </div>
@@ -335,8 +344,8 @@ export default function MessagesPage() {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Tìm kiếm liên hệ..."
-                            className="w-full pl-12 pr-10 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="Tìm kiếm mọi người..."
+                            className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-transparent focus:border-indigo-100 rounded-2xl text-sm focus:ring-4 focus:ring-indigo-50/50 outline-none transition-all"
                         />
                         {searchQuery && (
                             <button
@@ -428,7 +437,14 @@ export default function MessagesPage() {
             </div>
 
             {/* MAIN CHAT WINDOW */}
-            <div className="flex-1 bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 flex flex-col overflow-hidden border border-slate-100 relative">
+            <div className={`
+                absolute inset-0 lg:relative lg:inset-auto z-10
+                flex-1 bg-white
+                flex flex-col overflow-hidden 
+                transition-all duration-300 ease-in-out
+                ${activeChat ? 'translate-x-0 opacity-100' : 'translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100'}
+                relative
+            `}>
                 {/* Dynamic Wallpaper */}
                 <div 
                     className="absolute inset-0 pointer-events-none transition-all duration-500"
@@ -438,34 +454,42 @@ export default function MessagesPage() {
                 {activeUserObj ? (
                     <>
                         {/* Header */}
-                        <div className="h-20 px-8 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-20 relative">
-                            <div className="flex items-center gap-4">
+                        <div className="h-16 lg:h-20 px-4 lg:px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-slate-100 shrink-0 z-20 relative">
+                            <div className="flex items-center gap-3 lg:gap-4">
+                                {/* Mobile Back Button */}
+                                <button 
+                                    onClick={() => setActiveChat(null)}
+                                    className="p-2 lg:hidden text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+
                                 <div className="relative">
-                                    <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 shadow-sm overflow-hidden">
+                                    <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 shadow-sm overflow-hidden">
                                         {activeUserObj.AvatarUrl ? (
                                             <img src={activeUserObj.AvatarUrl} alt={activeUserObj.FullName} className="w-full h-full object-cover" />
                                         ) : (
                                             activeUserObj.FullName.charAt(0)
                                         )}
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+                                    <div className="absolute bottom-0 right-0 w-3 h-3 lg:w-3.5 lg:h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-slate-800 leading-tight">{activeUserObj.FullName}</h3>
-                                    <p className="text-[11px] font-bold text-emerald-500">Online</p>
+                                    <h3 className="font-bold lg:font-black text-slate-800 leading-tight text-sm lg:text-base">{activeUserObj.FullName}</h3>
+                                    <p className="text-[10px] lg:text-[11px] font-bold text-emerald-500">Đang hoạt động</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all"><Search size={20} /></button>
+                            <div className="flex items-center gap-1 lg:gap-2">
+                                <button className="p-2 lg:p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all hidden sm:block"><Search size={20} /></button>
                                 {/* Wallpaper Button */}
                                 <button
                                     onClick={() => setShowWallpaperPanel(v => !v)}
-                                    className={`p-2.5 rounded-xl transition-all ${showWallpaperPanel ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-indigo-600'}`}
+                                    className={`p-2 lg:p-2.5 rounded-xl transition-all ${showWallpaperPanel ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 hover:text-indigo-600'}`}
                                     title="Đổi hình nền"
                                 >
                                     <ImageIcon size={20} />
                                 </button>
-                                <button className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all"><MoreVertical size={20} /></button>
+                                <button className="p-2 lg:p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all"><MoreVertical size={20} /></button>
                             </div>
 
                             {/* Wallpaper Panel Dropdown */}
@@ -546,7 +570,7 @@ export default function MessagesPage() {
                         </div>
 
                         {/* Message Area */}
-                        <div className="flex-1 overflow-y-auto p-8 space-y-8 z-10 scrollbar-none">
+                        <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-4 lg:space-y-8 z-10 scrollbar-none">
                             {messages.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
                                     <Smile size={64} strokeWidth={1} className="mb-4" />
@@ -643,9 +667,9 @@ export default function MessagesPage() {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
-                            <form onSubmit={handleSendMessage} className="flex items-center gap-3 bg-slate-50 p-2 pl-5 rounded-2xl border border-slate-100 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:bg-white transition-all">
-                                <button type="button" className="text-slate-400 hover:text-indigo-600 transition-colors">
+                        <div className="p-3 lg:p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
+                            <form onSubmit={handleSendMessage} className="flex items-center gap-2 lg:gap-3 bg-slate-50 p-1.5 lg:p-2 pl-4 lg:pl-5 rounded-[1.5rem] lg:rounded-2xl border border-slate-100 focus-within:ring-4 focus-within:ring-indigo-50/50 focus-within:bg-white transition-all">
+                                <button type="button" className="text-slate-400 hover:text-indigo-600 transition-colors hidden sm:block">
                                     <Mic size={20} />
                                 </button>
                                 <input
