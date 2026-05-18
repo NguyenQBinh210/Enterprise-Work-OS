@@ -65,7 +65,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     if (initialTasks.length > 0) {
         const userIds = new Set<string>();
         initialTasks.forEach(task => {
-            task.Assignees?.forEach((a: any) => userIds.add(a.UserId));
+            task.Assignees?.forEach((a: { UserId: string }) => userIds.add(a.UserId));
         });
 
         if (userIds.size > 0) {
@@ -75,7 +75,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 .in('UserId', Array.from(userIds));
             
             initialTasks = initialTasks.map(task => {
-                const newAssignees = task.Assignees?.map((a: any) => {
+                const newAssignees = task.Assignees?.map((a: { UserId: string; user: Record<string, unknown> }) => {
                     const profile = profiles?.find(p => p.UserId === a.UserId);
                     return {
                         ...a,
@@ -91,10 +91,10 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     }
 
     return (
-        <div className="h-[calc(100vh-64px)] flex flex-col px-6 pt-5 pb-3 max-w-full overflow-hidden bg-slate-50/50 animate-fade-in">
+        <div className="h-[calc(100vh-64px)] flex flex-col px-3 pt-3 pb-3 max-w-full overflow-hidden bg-slate-50/50 animate-fade-in sm:px-5 sm:pt-5 md:px-6">
             <ProjectHeader group={group} currentUser={currentUser} />
 
-            <div className="flex-1 overflow-hidden mt-4 min-h-0">
+            <div className="flex-1 overflow-hidden mt-3 min-h-0 sm:mt-4">
                 <KanbanBoard
                     groupId={groupId}
                     initialTasks={initialTasks || []}

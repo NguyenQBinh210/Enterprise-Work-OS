@@ -2,24 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { 
-    Search, 
-    Plus, 
-    MoreVertical, 
-    Mic, 
-    Smile, 
-    Paperclip, 
-    Send,
-    Check,
-    CheckCheck,
-    Pin,
-    Filter,
-    ArrowLeft,
-    ImageIcon,
-    X,
-    Loader2,
-    Trash2,
-    Pencil
+import {
+    Search, Plus, MoreVertical, Mic, Smile, Paperclip, Send, Check, CheckCheck, Pin, Filter,
+    ArrowLeft, ImageIcon, X, Loader2, Trash2, Pencil
 } from 'lucide-react';
 import { uploadImage, deleteImage } from '@/actions/media.actions';
 import { toast } from 'sonner';
@@ -38,7 +23,7 @@ const WALLPAPER_PRESETS = [
 
 export default function MessagesPage() {
     const supabase = createClient();
-    
+
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [users, setUsers] = useState<any[]>([]);
     const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -63,7 +48,7 @@ export default function MessagesPage() {
         if (!activeChat) return;
         const saved = localStorage.getItem(`wallpaper_${activeChat}`);
         if (saved) {
-            try { setWallpaper(JSON.parse(saved)); } catch {}
+            try { setWallpaper(JSON.parse(saved)); } catch { }
         } else {
             setWallpaper(WALLPAPER_PRESETS[0]);
         }
@@ -98,10 +83,10 @@ export default function MessagesPage() {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !currentUser || !activeChat) return;
-        
+
         // Giới hạn 5MB cho tài liệu
         if (file.size > 5 * 1024 * 1024) { toast.error('File quá nặng! Vui lòng chọn file dưới 5MB.'); return; }
-        
+
         setUploadingImage(true);
         try {
             const reader = new FileReader();
@@ -112,10 +97,10 @@ export default function MessagesPage() {
                 if (result?.url) {
                     const isImage = file.type.startsWith('image/');
                     const newMsgId = 'msg_' + Math.random().toString(36).substring(2, 8);
-                    
+
                     // Nếu là file, lưu theo định dạng [FILE]url|filename
-                    const text = isImage 
-                        ? `[IMAGE]${result.url}` 
+                    const text = isImage
+                        ? `[IMAGE]${result.url}`
                         : `[FILE]${result.url}|${file.name}`;
 
                     const optimisticMsg = {
@@ -163,19 +148,19 @@ export default function MessagesPage() {
                 .from('Users')
                 .select('*')
                 .neq('Id', currentUser.Id);
-            
+
             if (data && data.length > 0) {
                 const userIds = data.map(u => u.Id);
                 const { data: profiles } = await supabase
                     .from('UserProfiles')
                     .select('UserId, AvatarUrl')
                     .in('UserId', userIds);
-                
+
                 const usersWithAvatars = data.map(u => {
                     const profile = profiles?.find(p => p.UserId === u.Id);
                     return { ...u, AvatarUrl: profile?.AvatarUrl || null };
                 });
-                
+
                 setUsers(usersWithAvatars);
                 // Chỉ tự động chọn chat trên desktop (màn hình rộng)
                 if (!activeChat && typeof window !== 'undefined' && window.innerWidth >= 1024) {
@@ -203,7 +188,7 @@ export default function MessagesPage() {
             gainNode.connect(audioCtx.destination);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.2);
-        } catch (e) {}
+        } catch (e) { }
     };
 
     // 3. Real-time Messages
@@ -221,10 +206,10 @@ export default function MessagesPage() {
         fetchMessages();
 
         const channel = supabase.channel(`chat:${activeChat}`)
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'PrivateMessages' 
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'PrivateMessages'
             }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     const newMsg = payload.new;
@@ -286,16 +271,16 @@ export default function MessagesPage() {
         // 1. Xóa khỏi giao diện ngay lập tức (Cực mượt)
         setMessages(prev => prev.filter(m => m.Id !== msgId));
         toast.success("Đã xóa tin nhắn");
-        
+
         // 2. Xử lý ngầm (Background)
         if (msg.Content?.startsWith('[IMAGE]') || msg.Content?.startsWith('[FILE]')) {
             const parts = msg.Content.split(']');
             const urlPart = parts[1].split('|')[0];
             try {
                 await deleteImage(urlPart);
-            } catch (e) {}
+            } catch (e) { }
         }
-        
+
         await supabase.from('PrivateMessages').delete().eq('Id', msgId);
     };
 
@@ -345,10 +330,10 @@ export default function MessagesPage() {
                             </button>
                         </div>
                     </div>
-                    
+
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                        <input 
+                        <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -368,30 +353,29 @@ export default function MessagesPage() {
 
                 {/* Recent Chats (Horizontal) — ẩn khi đang search */}
                 {!searchQuery && (
-                <div className="px-6 py-4">
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <h3 className="font-bold text-slate-800 text-sm">Gần đây</h3>
-                    </div>
-                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
-                        {users.slice(0, 5).map((u) => (
-                            <button key={u.Id} onClick={() => setActiveChat(u.Id)} className="flex flex-col items-center gap-2 shrink-0">
-                                <div className="relative">
-                                    <div className={`w-14 h-14 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-lg transition-all overflow-hidden ${
-                                        activeChat === u.Id ? 'bg-indigo-600 text-white' : 'bg-gradient-to-tr from-slate-200 to-slate-100 text-slate-600'
-                                    }`}>
-                                        {u.AvatarUrl ? (
-                                            <img src={u.AvatarUrl} alt={u.FullName} className="w-full h-full object-cover" />
-                                        ) : (
-                                            u.FullName.charAt(0)
-                                        )}
+                    <div className="px-6 py-4">
+                        <div className="flex items-center justify-between mb-4 px-1">
+                            <h3 className="font-bold text-slate-800 text-sm">Gần đây</h3>
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+                            {users.slice(0, 5).map((u) => (
+                                <button key={u.Id} onClick={() => setActiveChat(u.Id)} className="flex flex-col items-center gap-2 shrink-0">
+                                    <div className="relative">
+                                        <div className={`w-14 h-14 rounded-full border-2 border-white shadow-md flex items-center justify-center font-bold text-lg transition-all overflow-hidden ${activeChat === u.Id ? 'bg-indigo-600 text-white' : 'bg-gradient-to-tr from-slate-200 to-slate-100 text-slate-600'
+                                            }`}>
+                                            {u.AvatarUrl ? (
+                                                <img src={u.AvatarUrl} alt={u.FullName} className="w-full h-full object-cover" />
+                                            ) : (
+                                                u.FullName.charAt(0)
+                                            )}
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
-                                </div>
-                                <span className="text-[11px] font-bold text-slate-500 max-w-[56px] truncate">{u.FullName.split(' ')[0]}</span>
-                            </button>
-                        ))}
+                                    <span className="text-[11px] font-bold text-slate-500 max-w-[56px] truncate">{u.FullName.split(' ')[0]}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* All Chats (Vertical) */}
@@ -410,36 +394,34 @@ export default function MessagesPage() {
                         </div>
                     ) : (
                         filteredUsers.map((u) => (
-                        <button
-                            key={u.Id}
-                            onClick={() => { setActiveChat(u.Id); setSearchQuery(''); }}
-                            className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all group ${
-                                activeChat === u.Id 
-                                    ? 'bg-indigo-50/50 ring-1 ring-indigo-100' 
-                                    : 'hover:bg-slate-50'
-                            }`}
-                        >
-                            <div className="relative shrink-0">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg overflow-hidden ${
-                                    activeChat === u.Id ? 'bg-indigo-600' : 'bg-gradient-to-br from-slate-400 to-slate-500'
-                                }`}>
-                                    {u.AvatarUrl ? (
-                                        <img src={u.AvatarUrl} alt={u.FullName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        u.FullName.charAt(0)
-                                    )}
+                            <button
+                                key={u.Id}
+                                onClick={() => { setActiveChat(u.Id); setSearchQuery(''); }}
+                                className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all group ${activeChat === u.Id
+                                        ? 'bg-indigo-50/50 ring-1 ring-indigo-100'
+                                        : 'hover:bg-slate-50'
+                                    }`}
+                            >
+                                <div className="relative shrink-0">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg overflow-hidden ${activeChat === u.Id ? 'bg-indigo-600' : 'bg-gradient-to-br from-slate-400 to-slate-500'
+                                        }`}>
+                                        {u.AvatarUrl ? (
+                                            <img src={u.AvatarUrl} alt={u.FullName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            u.FullName.charAt(0)
+                                        )}
+                                    </div>
+                                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                                 </div>
-                                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="font-bold text-slate-800 truncate text-sm">{u.FullName}</p>
-                                <p className="text-xs text-slate-400 truncate mt-0.5">{u.Email}</p>
-                            </div>
-                            {activeChat === u.Id && (
-                                <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                            )}
-                        </button>
-                    ))
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="font-bold text-slate-800 truncate text-sm">{u.FullName}</p>
+                                    <p className="text-xs text-slate-400 truncate mt-0.5">{u.Email}</p>
+                                </div>
+                                {activeChat === u.Id && (
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                                )}
+                            </button>
+                        ))
                     )}
                 </div>
             </div>
@@ -454,18 +436,18 @@ export default function MessagesPage() {
                 relative
             `}>
                 {/* Dynamic Wallpaper */}
-                <div 
+                <div
                     className="absolute inset-0 pointer-events-none transition-all duration-500"
                     style={wallpaper.style || {}}
                 />
-                
+
                 {activeUserObj ? (
                     <>
                         {/* Header */}
                         <div className="h-16 lg:h-20 px-4 lg:px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-slate-100 shrink-0 z-20 relative">
                             <div className="flex items-center gap-3 lg:gap-4">
                                 {/* Mobile Back Button */}
-                                <button 
+                                <button
                                     onClick={() => setActiveChat(null)}
                                     className="p-2 lg:hidden text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
                                 >
@@ -588,7 +570,7 @@ export default function MessagesPage() {
                                 messages.map((msg, index) => {
                                     const isMe = msg.SenderId === currentUser.Id;
                                     const isConsecutive = index > 0 && messages[index - 1].SenderId === msg.SenderId;
-                                    
+
                                     return (
                                         <div key={msg.Id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                             {!isConsecutive && (
@@ -602,7 +584,7 @@ export default function MessagesPage() {
                                                     {isMe && <CheckCheck size={14} className="text-indigo-500" />}
                                                 </div>
                                             )}
-                                            
+
                                             <div className="flex items-end gap-3 max-w-[80%] group">
                                                 {!isMe && !isConsecutive && (
                                                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-500 shrink-0 overflow-hidden">
@@ -614,12 +596,12 @@ export default function MessagesPage() {
                                                     </div>
                                                 )}
                                                 {!isMe && isConsecutive && <div className="w-8 shrink-0" />}
-                                                
+
                                                 <div className="relative">
                                                     {(() => {
                                                         const isImg = msg.Content?.startsWith('[IMAGE]');
                                                         const isFile = msg.Content?.startsWith('[FILE]');
-                                                        
+
                                                         if (isImg) {
                                                             const imgUrl = msg.Content.replace('[IMAGE]', '');
                                                             return (
@@ -634,26 +616,23 @@ export default function MessagesPage() {
                                                             const fileUrl = fileData[0];
                                                             const fileName = fileData[1] || 'document.pdf';
                                                             const downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
-                                                            
+
                                                             return (
-                                                                <div className={`px-5 py-4 flex items-center gap-4 rounded-2xl border shadow-sm transition-all hover:shadow-md ${
-                                                                    isMe ? 'bg-indigo-700 border-indigo-800 text-white' : 'bg-white border-slate-200 text-slate-800'
-                                                                }`}>
-                                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
-                                                                        isMe ? 'bg-indigo-600' : 'bg-slate-100 text-slate-500'
+                                                                <div className={`px-5 py-4 flex items-center gap-4 rounded-2xl border shadow-sm transition-all hover:shadow-md ${isMe ? 'bg-indigo-700 border-indigo-800 text-white' : 'bg-white border-slate-200 text-slate-800'
                                                                     }`}>
+                                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${isMe ? 'bg-indigo-600' : 'bg-slate-100 text-slate-500'
+                                                                        }`}>
                                                                         <Paperclip size={24} />
                                                                     </div>
                                                                     <div className="flex-1 min-w-0 pr-4">
                                                                         <p className="text-sm font-bold truncate leading-tight mb-1">{fileName}</p>
                                                                         <p className={`text-[10px] font-black uppercase tracking-widest ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>Tài liệu đính kèm</p>
                                                                     </div>
-                                                                    <a 
-                                                                        href={downloadUrl} 
+                                                                    <a
+                                                                        href={downloadUrl}
                                                                         download={fileName}
-                                                                        className={`p-2.5 rounded-xl transition-all active:scale-90 ${
-                                                                            isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'
-                                                                        }`}
+                                                                        className={`p-2.5 rounded-xl transition-all active:scale-90 ${isMe ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'
+                                                                            }`}
                                                                         title="Tải về"
                                                                     >
                                                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -668,10 +647,10 @@ export default function MessagesPage() {
                                                             <div className={`${isMe ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-white text-slate-700 border border-slate-100'} px-5 py-3.5 text-[15px] font-medium shadow-sm transition-all rounded-[1.5rem] ${isMe ? 'rounded-tr-[0.25rem]' : 'rounded-tl-[0.25rem]'}`}>
                                                                 {editingMessageId === msg.Id ? (
                                                                     <form onSubmit={(e) => handleUpdateMessage(e, msg.Id)} className="flex items-center gap-1.5">
-                                                                        <input 
-                                                                            type="text" 
-                                                                            value={editValue} 
-                                                                            onChange={(e) => setEditValue(e.target.value)} 
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editValue}
+                                                                            onChange={(e) => setEditValue(e.target.value)}
                                                                             className="px-2.5 py-1 text-slate-800 bg-white/90 rounded-lg text-[14px] outline-none min-w-[150px] border border-white focus:ring-2 focus:ring-white/50 transition-all shadow-inner"
                                                                             autoFocus
                                                                         />
@@ -684,7 +663,7 @@ export default function MessagesPage() {
                                                             </div>
                                                         );
                                                     })()}
-                                                    
+
                                                     {/* Reactions Mockup */}
                                                     {index === messages.length - 2 && (
                                                         <div className="absolute -bottom-3 right-0 flex -space-x-1">
@@ -726,16 +705,16 @@ export default function MessagesPage() {
                                 />
                                 <div className="flex items-center gap-1 pr-1">
                                     <button type="button" className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Smile size={20} /></button>
-                                    
-                                    <input 
-                                        type="file" 
-                                        ref={chatImageInputRef} 
-                                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" 
-                                        className="hidden" 
-                                        onChange={handleFileUpload} 
+
+                                    <input
+                                        type="file"
+                                        ref={chatImageInputRef}
+                                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                        className="hidden"
+                                        onChange={handleFileUpload}
                                     />
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={() => chatImageInputRef.current?.click()}
                                         disabled={uploadingImage}
                                         className={`p-2 transition-colors ${uploadingImage ? 'text-indigo-400 animate-pulse' : 'text-slate-400 hover:text-indigo-600'}`}
@@ -744,8 +723,8 @@ export default function MessagesPage() {
                                         {uploadingImage ? <Loader2 size={20} className="animate-spin" /> : <Paperclip size={20} />}
                                     </button>
 
-                                    <button 
-                                        type="submit" 
+                                    <button
+                                        type="submit"
                                         disabled={!inputValue.trim()}
                                         className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 shadow-lg shadow-indigo-100 transition-all active:scale-95"
                                     >
