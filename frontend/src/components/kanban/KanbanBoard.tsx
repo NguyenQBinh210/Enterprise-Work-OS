@@ -109,7 +109,7 @@ function getDeadlineState(deadline?: string | null) {
   dl.setHours(0, 0, 0, 0);
   const diff = Math.round((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diff < 0) return { label: `Quá hạn ${Math.abs(diff)}n`, urgent: true, overdue: true };
+  if (diff < 0) return { label: `Quá hạn ${Math.abs(diff)} ngày`, urgent: true, overdue: true };
   if (diff === 0) return { label: "Hôm nay", urgent: true, overdue: false };
   if (diff <= 2) return { label: `Còn ${diff} ngày`, urgent: true, overdue: false };
 

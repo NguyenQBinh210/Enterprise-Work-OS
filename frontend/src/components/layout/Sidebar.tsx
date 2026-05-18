@@ -171,7 +171,7 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
                 {t('common.administration')}
               </h4>
               <div className="space-y-1.5">
-                {renderNavLink({ href: "/dashboard/statistics", icon: BarChart3, children: t('common.statistics') })}
+                {renderNavLink({ href: "/dashboard/analytics", icon: BarChart3, children: t('common.statistics') })}
                 {renderNavLink({ href: "/dashboard/settings", icon: Settings, children: t('common.system_settings') })}
               </div>
             </div>

@@ -7,7 +7,9 @@ import {
     ArrowLeft, ImageIcon, X, Loader2, Trash2, Pencil
 } from 'lucide-react';
 import { uploadImage, deleteImage } from '@/actions/media.actions';
+import { createNotification } from '@/actions/notification.actions';
 import { toast } from 'sonner';
+import { useSearchParams } from 'next/navigation';
 
 // Preset wallpaper options
 const WALLPAPER_PRESETS = [
@@ -23,6 +25,7 @@ const WALLPAPER_PRESETS = [
 
 export default function MessagesPage() {
     const supabase = createClient();
+    const searchParams = useSearchParams();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [users, setUsers] = useState<any[]>([]);
@@ -42,6 +45,7 @@ export default function MessagesPage() {
     const [uploadingWallpaper, setUploadingWallpaper] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const requestedChatId = searchParams.get('chat');
 
     // Load wallpaper from localStorage when chat changes
     useEffect(() => {
@@ -117,6 +121,16 @@ export default function MessagesPage() {
                         ReceiverId: activeChat,
                         Content: text
                     });
+
+                    await createNotification({
+                        userId: activeChat,
+                        actorId: currentUser.Id,
+                        type: 'PRIVATE_MESSAGE',
+                        message: isImage
+                            ? `${currentUser.FullName} đã gửi cho bạn một hình ảnh.`
+                            : `${currentUser.FullName} đã gửi cho bạn một tệp đính kèm.`,
+                        link: `/dashboard/messages?chat=${currentUser.Id}`,
+                    });
                 }
                 setUploadingImage(false);
                 if (chatImageInputRef.current) chatImageInputRef.current.value = '';
@@ -163,7 +177,9 @@ export default function MessagesPage() {
 
                 setUsers(usersWithAvatars);
                 // Chỉ tự động chọn chat trên desktop (màn hình rộng)
-                if (!activeChat && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                if (requestedChatId && usersWithAvatars.some(u => u.Id === requestedChatId)) {
+                    setActiveChat(requestedChatId);
+                } else if (!activeChat && typeof window !== 'undefined' && window.innerWidth >= 1024) {
                     setActiveChat(usersWithAvatars[0].Id);
                 }
             } else {
@@ -171,7 +187,7 @@ export default function MessagesPage() {
             }
         };
         fetchUsers();
-    }, [currentUser]);
+    }, [currentUser, requestedChatId]);
 
     // Âm thanh thông báo
     const playNotificationSound = () => {
@@ -261,6 +277,14 @@ export default function MessagesPage() {
             SenderId: currentUser.Id,
             ReceiverId: activeChat,
             Content: text
+        });
+
+        await createNotification({
+            userId: activeChat,
+            actorId: currentUser.Id,
+            type: 'PRIVATE_MESSAGE',
+            message: `${currentUser.FullName} đã nhắn: ${text}`,
+            link: `/dashboard/messages?chat=${currentUser.Id}`,
         });
     };
 

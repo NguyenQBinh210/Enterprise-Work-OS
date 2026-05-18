@@ -1,166 +1,178 @@
-'use client';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import AnalyticsClient, { type AnalyticsData } from "@/components/analytics/AnalyticsClient";
 
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    LineChart,
-    Line,
-    AreaChart,
-    Area
-} from 'recharts';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+export const dynamic = "force-dynamic";
 
-export default function AnalyticsPage() {
-    const { t } = useLanguage();
+type TaskRow = {
+  Id: string;
+  Title: string;
+  Status: string | null;
+  Priority: string | null;
+  Deadline: string | null;
+  CompletedAt?: string | null;
+  CreatedAt: string | null;
+  GroupId: string | null;
+  Project?: { Name?: string | null } | null;
+};
 
-    // Mock Data
-    const weeklyActivityData = [
-        { name: 'Mon', tasks: 12, hours: 6 },
-        { name: 'Tue', tasks: 19, hours: 8 },
-        { name: 'Wed', tasks: 15, hours: 7 },
-        { name: 'Thu', tasks: 22, hours: 9 },
-        { name: 'Fri', tasks: 18, hours: 8 },
-        { name: 'Sat', tasks: 8, hours: 4 },
-        { name: 'Sun', tasks: 5, hours: 3 },
-    ];
+export default async function AnalyticsPage() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
 
-    const projectStatusData = [
-        { name: 'Completed', value: 35, color: '#10b981' }, // Emerald
-        { name: 'In Progress', value: 45, color: '#3b82f6' }, // Blue
-        { name: 'Planning', value: 15, color: '#a855f7' },   // Purple
-        { name: 'On Hold', value: 5, color: '#94a3b8' },    // Slate
-    ];
+  const { data: { session } } = await supabase.auth.getSession();
+  const { data: userData } = await supabase
+    .from("Users")
+    .select("Id, FullName")
+    .eq("Email", session?.user?.email)
+    .single();
 
-    const efficiencyData = [
-        { name: 'Week 1', score: 65 },
-        { name: 'Week 2', score: 72 },
-        { name: 'Week 3', score: 68 },
-        { name: 'Week 4', score: 85 },
-    ];
+  if (!userData?.Id) {
+    return <div className="p-8 text-sm font-semibold text-slate-500">Vui lòng đăng nhập lại.</div>;
+  }
 
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-                    <p className="text-slate-500 mt-1">Overview of your team's performance and project statistics.</p>
-                </div>
-                <div className="flex gap-2">
-                    <select className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg p-2.5 outline-none focus:border-blue-500">
-                        <option>Last 7 Days</option>
-                        <option>Last 30 Days</option>
-                        <option>This Month</option>
-                        <option>This Year</option>
-                    </select>
-                </div>
-            </div>
+  const { data: memberships } = await supabase
+    .from("GroupMembers")
+    .select("GroupId")
+    .eq("UserId", userData.Id);
 
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {[
-                    { label: 'Total Tasks', value: '1,284', change: '+12%', color: 'blue' },
-                    { label: 'Completed', value: '892', change: '+8%', color: 'emerald' },
-                    { label: 'Hours Tracked', value: '3,450', change: '+5%', color: 'purple' },
-                    { label: 'Efficiency', value: '94%', change: '+2%', color: 'orange' },
-                ].map((stat, i) => (
-                    <div key={i} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                        <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
-                        <div className="flex items-end justify-between mt-2">
-                            <h3 className="text-2xl font-bold text-slate-900">{stat.value}</h3>
-                            <span className={`text-xs font-semibold px-2 py-1 rounded-full bg-${stat.color}-50 text-${stat.color}-600`}>
-                                {stat.change}
-                            </span>
-                        </div>
-                    </div>
-                ))}
-            </div>
+  const groupIds = memberships?.map((item) => item.GroupId).filter(Boolean) || [];
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  const [{ data: assignments }, { data: projectTasks }, { data: members }] = await Promise.all([
+    supabase.from("TaskAssignees").select("TaskId").eq("UserId", userData.Id),
+    groupIds.length
+      ? supabase
+          .from("Tasks")
+          .select("Id, Title, Status, Priority, Deadline, CompletedAt, CreatedAt, GroupId, Project:GroupId(Name)")
+          .in("GroupId", groupIds)
+          .eq("IsDeleted", false)
+      : Promise.resolve({ data: [] }),
+    groupIds.length
+      ? supabase
+          .from("GroupMembers")
+          .select("UserId, GroupId, Users(FullName)")
+          .in("GroupId", groupIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-                {/* Weekly Activity Bar Chart */}
-                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Weekly Activity</h3>
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={weeklyActivityData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    cursor={{ fill: '#f1f5f9' }}
-                                />
-                                <Bar dataKey="tasks" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Tasks Completed" />
-                                <Bar dataKey="hours" fill="#a855f7" radius={[4, 4, 0, 0]} name="Hours Spent" />
-                                <Legend />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+  const assignedIds = assignments?.map((item) => item.TaskId) || [];
+  const allTasks = ((projectTasks || []) as unknown as TaskRow[]);
+  const personalTasks = allTasks.filter((task) => assignedIds.includes(task.Id));
+  const allTaskIds = allTasks.map((task) => task.Id);
+  const { data: taskAssignees } = allTaskIds.length
+    ? await supabase.from("TaskAssignees").select("TaskId, UserId").in("TaskId", allTaskIds)
+    : { data: [] };
 
-                {/* Project Status Pie Chart */}
-                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Project Status</h3>
-                    <div className="h-80 w-full flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={projectStatusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={80}
-                                    outerRadius={100}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {projectStatusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Legend verticalAlign="bottom" height={36} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+  const countByStatus = (tasks: TaskRow[], status: string) => tasks.filter((task) => task.Status === status).length;
+  const personalDone = countByStatus(personalTasks, "DONE");
+  const projectDone = countByStatus(allTasks, "DONE");
+  const personalRate = personalTasks.length ? Math.round((personalDone / personalTasks.length) * 100) : 0;
+  const projectRate = allTasks.length ? Math.round((projectDone / allTasks.length) * 100) : 0;
 
-                {/* Efficiency Trend Area Chart */}
-                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm lg:col-span-2">
-                    <h3 className="text-lg font-bold text-slate-900 mb-6">Team Efficiency Trend</h3>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={efficiencyData}>
-                                <defs>
-                                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const overdue = personalTasks.filter((task) => {
+    if (!task.Deadline || task.Status === "DONE") return false;
+    const deadline = new Date(task.Deadline);
+    deadline.setHours(0, 0, 0, 0);
+    return deadline < today;
+  }).length;
 
-            </div>
-        </div>
-    );
+  const statusData = [
+    { name: "Cần làm", value: countByStatus(allTasks, "TODO"), color: "#64748b" },
+    { name: "Đang làm", value: countByStatus(allTasks, "IN_PROGRESS"), color: "#3b82f6" },
+    { name: "Hoàn thành", value: projectDone, color: "#10b981" },
+  ];
+
+  const priorityData = [
+    { name: "Cao", value: allTasks.filter((task) => task.Priority === "HIGH").length, color: "#ef4444" },
+    { name: "Thường", value: allTasks.filter((task) => !task.Priority || task.Priority === "NORMAL").length, color: "#3b82f6" },
+    { name: "Thấp", value: allTasks.filter((task) => task.Priority === "LOW").length, color: "#94a3b8" },
+  ];
+
+  const weeklyDoneData = Array.from({ length: 7 }).map((_, index) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (6 - index));
+    const key = day.toISOString().slice(0, 10);
+    return {
+      name: day.toLocaleDateString("vi-VN", { weekday: "short" }),
+      value: allTasks.filter((task) => task.CompletedAt?.slice(0, 10) === key).length,
+    };
+  });
+
+  const progressByProject = new Map<string, { total: number; done: number }>();
+  allTasks.forEach((task) => {
+    const name = task.Project?.Name || "Không tên";
+    const current = progressByProject.get(name) || { total: 0, done: 0 };
+    current.total += 1;
+    if (task.Status === "DONE") current.done += 1;
+    progressByProject.set(name, current);
+  });
+
+  const memberMap = new Map<string, { name: string; total: number; done: number }>();
+  (members || []).forEach((member: any) => {
+    const name = member.Users?.FullName || "Thành viên";
+    memberMap.set(member.UserId, { name, total: 0, done: 0 });
+  });
+  const taskById = new Map(allTasks.map((task) => [task.Id, task]));
+  (taskAssignees || []).forEach((assignee: any) => {
+    const task = taskById.get(assignee.TaskId);
+    const member = memberMap.get(assignee.UserId);
+    if (!task || !member) return;
+    member.total += 1;
+    if (task.Status === "DONE") member.done += 1;
+  });
+
+  const attentionTasks = personalTasks
+    .filter((task) => task.Status !== "DONE")
+    .filter((task) => task.Priority === "HIGH" || task.Deadline)
+    .sort((a, b) => new Date(a.Deadline || "9999-12-31").getTime() - new Date(b.Deadline || "9999-12-31").getTime())
+    .slice(0, 6)
+    .map((task) => ({
+      id: task.Id,
+      title: task.Title,
+      project: task.Project?.Name || "Không tên",
+      deadline: task.Deadline,
+      priority: task.Priority,
+      status: task.Status || "TODO",
+    }));
+
+  const data: AnalyticsData = {
+    personalCards: [
+      { label: "Việc được giao", value: personalTasks.length, hint: "Từ các dự án bạn tham gia" },
+      { label: "Đã hoàn thành", value: personalDone, hint: `${personalRate}% tiến độ cá nhân` },
+      { label: "Đang xử lý", value: countByStatus(personalTasks, "IN_PROGRESS"), hint: "Cần cập nhật thường xuyên" },
+      { label: "Quá hạn", value: overdue, hint: "Cần ưu tiên xử lý" },
+    ],
+    projectCards: [
+      { label: "Dự án tham gia", value: groupIds.length, hint: "Tổng workspace/project" },
+      { label: "Tổng công việc", value: allTasks.length, hint: "Trong các dự án của bạn" },
+      { label: "Hoàn thành", value: projectDone, hint: `${projectRate}% tiến độ chung` },
+      { label: "Việc ưu tiên cao", value: allTasks.filter((task) => task.Priority === "HIGH").length, hint: "Theo cột Priority" },
+    ],
+    statusData,
+    priorityData,
+    weeklyDoneData,
+    projectProgressData: Array.from(progressByProject.entries()).slice(0, 6).map(([name, value]) => ({
+      name,
+      value: value.total ? Math.round((value.done / value.total) * 100) : 0,
+    })),
+    memberStats: Array.from(memberMap.values()).slice(0, 6).map((member) => ({
+      ...member,
+      rate: member.total ? Math.round((member.done / member.total) * 100) : 0,
+    })),
+    attentionTasks,
+  };
+
+  return <AnalyticsClient data={data} />;
 }
