@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { Suspense, useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
     Search, Plus, MoreVertical, Mic, Smile, Paperclip, Send, Check, CheckCheck, Pin, Filter,
@@ -24,6 +24,14 @@ const WALLPAPER_PRESETS = [
 ];
 
 export default function MessagesPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-sm font-semibold text-slate-400">Đang tải tin nhắn...</div>}>
+            <MessagesPageContent />
+        </Suspense>
+    );
+}
+
+function MessagesPageContent() {
     const supabase = createClient();
     const searchParams = useSearchParams();
 
