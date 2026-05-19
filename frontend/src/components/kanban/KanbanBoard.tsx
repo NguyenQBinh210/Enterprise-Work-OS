@@ -25,7 +25,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createTask, getTasks, updateTaskStatus } from "@/actions/task.actions";
 import { getMyProjectRole } from "@/actions/project.actions";
 import TaskDetailModal from "./TaskDetailModal";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import {
   CalendarDays,
   CheckCircle2,
@@ -134,14 +134,7 @@ export default function KanbanBoard({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userRole, setUserRole] = useState<string>("VIEWER");
 
-  const supabase = useMemo(
-    () =>
-      createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      ),
-    []
-  );
+  const supabase = useMemo(() => createClient(), []);
 
   const loadTasks = useCallback(async () => {
     const data = await getTasks(groupId);
@@ -153,7 +146,6 @@ export default function KanbanBoard({
       getMyProjectRole(groupId, currentUser.Id).then((role) => setUserRole(role));
     }
 
-    void Promise.resolve().then(loadTasks);
     const channel = supabase
       .channel("kanban-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "Tasks", filter: `GroupId=eq.${groupId}` }, () => loadTasks())

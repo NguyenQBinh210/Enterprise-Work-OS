@@ -59,12 +59,12 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       loadProfile(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => loadProfile(session), 500);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+      loadProfile(session);
     });
 
     return () => subscription.unsubscribe();

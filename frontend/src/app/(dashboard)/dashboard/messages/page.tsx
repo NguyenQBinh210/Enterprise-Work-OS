@@ -23,6 +23,18 @@ const WALLPAPER_PRESETS = [
     { id: 'aurora', label: 'Aurora', style: { background: 'linear-gradient(135deg, #fae8ff 0%, #dbeafe 50%, #dcfce7 100%)' } },
 ];
 
+type ChatUser = {
+    Id: string;
+    FullName?: string | null;
+    Email?: string | null;
+    AvatarUrl?: string | null;
+};
+
+type UserProfile = {
+    UserId: string;
+    AvatarUrl?: string | null;
+};
+
 export default function MessagesPage() {
     return (
         <Suspense fallback={<div className="p-8 text-sm font-semibold text-slate-400">Đang tải tin nhắn...</div>}>
@@ -172,20 +184,20 @@ function MessagesPageContent() {
                 .neq('Id', currentUser.Id);
 
             if (data && data.length > 0) {
-                const userIds = data.map(u => u.Id);
+                const userIds = data.map((u: ChatUser) => u.Id);
                 const { data: profiles } = await supabase
                     .from('UserProfiles')
                     .select('UserId, AvatarUrl')
                     .in('UserId', userIds);
 
-                const usersWithAvatars = data.map(u => {
-                    const profile = profiles?.find(p => p.UserId === u.Id);
+                const usersWithAvatars = data.map((u: ChatUser) => {
+                    const profile = profiles?.find((p: UserProfile) => p.UserId === u.Id);
                     return { ...u, AvatarUrl: profile?.AvatarUrl || null };
                 });
 
                 setUsers(usersWithAvatars);
                 // Chỉ tự động chọn chat trên desktop (màn hình rộng)
-                if (requestedChatId && usersWithAvatars.some(u => u.Id === requestedChatId)) {
+                if (requestedChatId && usersWithAvatars.some((u: ChatUser) => u.Id === requestedChatId)) {
                     setActiveChat(requestedChatId);
                 } else if (!activeChat && typeof window !== 'undefined' && window.innerWidth >= 1024) {
                     setActiveChat(usersWithAvatars[0].Id);
@@ -234,7 +246,7 @@ function MessagesPageContent() {
                 event: '*',
                 schema: 'public',
                 table: 'PrivateMessages'
-            }, (payload) => {
+            }, (payload: any) => {
                 if (payload.eventType === 'INSERT') {
                     const newMsg = payload.new;
                     if (newMsg.ReceiverId === currentUser.Id) playNotificationSound();

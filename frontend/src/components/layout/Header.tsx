@@ -38,14 +38,13 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         };
 
         // 1. Tải lần đầu
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
             loadProfile(session);
         });
 
         // 2. Tự động lắng nghe mỗi khi Đăng nhập / Đăng xuất
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            // Đợi 1 chút xíu (500ms) để đề phòng lúc Đăng ký, hàm insert Users chạy chưa xong
-            setTimeout(() => loadProfile(session), 500);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
+            loadProfile(session);
         });
 
         return () => subscription.unsubscribe();

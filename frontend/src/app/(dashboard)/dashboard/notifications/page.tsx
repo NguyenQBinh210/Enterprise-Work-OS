@@ -19,6 +19,16 @@ type NotificationItem = {
   ActorAvatarUrl?: string | null;
 };
 
+type NotificationActor = {
+  Id: string;
+  FullName?: string | null;
+};
+
+type NotificationProfile = {
+  UserId: string;
+  AvatarUrl?: string | null;
+};
+
 const filters = [
   { id: "all", label: "Tất cả" },
   { id: "message", label: "Tin nhắn" },
@@ -42,8 +52,8 @@ export default function NotificationsPage() {
     ]);
 
     return items.map((item) => {
-      const actor = users?.find(user => user.Id === item.ActorId);
-      const profile = profiles?.find(profile => profile.UserId === item.ActorId);
+      const actor = users?.find((user: NotificationActor) => user.Id === item.ActorId);
+      const profile = profiles?.find((profile: NotificationProfile) => profile.UserId === item.ActorId);
       return {
         ...item,
         ActorName: actor?.FullName || null,

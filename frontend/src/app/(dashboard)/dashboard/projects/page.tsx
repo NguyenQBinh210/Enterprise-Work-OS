@@ -71,14 +71,15 @@ export default async function ProjectListPage() {
   if (projects.length > 0) {
     const ids = projects.map((p: any) => p.Id);
 
-    const { data: taskData } = await supabase
-      .from("Tasks").select("GroupId").in("GroupId", ids).eq("IsDeleted", false);
+    const [{ data: taskData }, { data: memberData }] = await Promise.all([
+      supabase.from("Tasks").select("GroupId").in("GroupId", ids).eq("IsDeleted", false),
+      supabase.from("GroupMembers").select("GroupId").in("GroupId", ids),
+    ]);
+
     if (taskData) {
       taskData.forEach((t: any) => { taskCounts[t.GroupId] = (taskCounts[t.GroupId] || 0) + 1; });
     }
 
-    const { data: memberData } = await supabase
-      .from("GroupMembers").select("GroupId").in("GroupId", ids);
     if (memberData) {
       memberData.forEach((m: any) => { memberCounts[m.GroupId] = (memberCounts[m.GroupId] || 0) + 1; });
     }
