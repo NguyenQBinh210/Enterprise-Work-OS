@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { createClient } from "@/lib/supabase/client";
+import { clearSupabaseAuthStorage, createClient, resetSupabaseClient } from "@/lib/supabase/client";
 import { logActivity } from "@/actions/admin.actions";
 import { Mail, Lock, ArrowRight, Shield } from "lucide-react";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 export default function LoginPage() {
   const { t } = useLanguage();
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,44 +30,57 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    clearSupabaseAuthStorage();
+    resetSupabaseClient();
     const supabase = createClient();
 
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (loginError) {
-      setError(loginError.message);
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data: userData } = await supabase
-        .from("Users")
-        .select("Id, IsDisabled")
-        .eq("Email", email)
-        .single();
+      const loginResult = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        15000,
+        "Đăng nhập quá lâu, vui lòng thử lại."
+      ) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
 
-      if (userData?.IsDisabled) {
-        await supabase.auth.signOut();
-        setError("Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+      if (loginResult.error) {
+        setError(loginResult.error.message);
         setLoading(false);
         return;
       }
 
-      if (userData) {
-        logActivity(userData.Id, "Đăng nhập hệ thống", "Truy cập từ trình duyệt").catch((logError) => {
-          console.error("Không thể ghi nhật ký đăng nhập:", logError);
-        });
-      }
-    } catch (err) {
-      console.error("Lỗi kiểm tra trạng thái tài khoản:", err);
-    }
+      try {
+        const userResult = await withTimeout(
+          supabase
+            .from("Users")
+            .select("Id, IsDisabled")
+            .eq("Email", email)
+            .single(),
+          10000,
+          "Không thể kiểm tra tài khoản. Vui lòng thử lại."
+        ) as { data: { Id: string; IsDisabled?: boolean | null } | null };
+        const userData = userResult.data;
 
-    router.replace("/dashboard/projects");
-    router.refresh();
+        if (userData?.IsDisabled) {
+          await supabase.auth.signOut();
+          setError("Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+          setLoading(false);
+          return;
+        }
+
+        if (userData) {
+          logActivity(userData.Id, "Đăng nhập hệ thống", "Truy cập từ trình duyệt").catch((logError) => {
+            console.error("Không thể ghi nhật ký đăng nhập:", logError);
+          });
+        }
+      } catch (profileError) {
+        console.error("Lỗi kiểm tra trạng thái tài khoản:", profileError);
+      }
+
+      window.location.assign("/dashboard/projects");
+    } catch (loginError) {
+      const message = loginError instanceof Error ? loginError.message : "Không thể đăng nhập. Vui lòng thử lại.";
+      setError(message);
+      setLoading(false);
+    }
   };
 
   return (
