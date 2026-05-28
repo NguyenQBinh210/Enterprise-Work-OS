@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppImage } from '@/components/ui/AppImage';
 
 /* ─────────────── types ─────────────── */
 interface Participant {
@@ -212,13 +213,13 @@ export default function MeetingPage() {
             ) : p.isCameraOff ? (
                 <div className="relative flex flex-col items-center z-10">
                     <div className={`rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl ${isLarge ? 'w-32 h-32' : 'w-20 h-20'}`}>
-                        <img src={p.avatar} alt={p.name} className="w-full h-full rounded-full" />
+                        <AppImage src={p.avatar} alt={p.name} fill className="w-full h-full rounded-full" imageClassName="object-cover" sizes={isLarge ? "128px" : "80px"} />
                     </div>
                 </div>
             ) : (
                 <div className="relative flex flex-col items-center z-10">
                     <div className={`rounded-full ring-4 ${p.isSpeaking ? 'ring-emerald-400' : 'ring-slate-700'} transition-all shadow-2xl ${isLarge ? 'w-32 h-32' : 'w-20 h-20'}`}>
-                        <img src={p.avatar} alt={p.name} className="w-full h-full rounded-full" />
+                        <AppImage src={p.avatar} alt={p.name} fill className="w-full h-full rounded-full" imageClassName="object-cover" sizes={isLarge ? "128px" : "80px"} />
                     </div>
                 </div>
             )}
@@ -451,7 +452,7 @@ export default function MeetingPage() {
                                 {participants.map((p) => (
                                     <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800/60 transition-colors group">
                                         <div className="relative">
-                                            <img src={p.avatar} alt={p.name} className="w-10 h-10 rounded-full ring-2 ring-slate-700" />
+                                            <AppImage src={p.avatar} alt={p.name} width={40} height={40} className="w-10 h-10 rounded-full ring-2 ring-slate-700" />
                                             <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500" />
                                         </div>
                                         <div className="flex-1 min-w-0">

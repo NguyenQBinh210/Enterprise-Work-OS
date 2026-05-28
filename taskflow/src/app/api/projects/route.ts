@@ -8,7 +8,6 @@ const mockProjects = [
 
 // Hàm GET: Xử lý request lấy danh sách dự án
 export async function GET() {
-  // Thực tế: Lấy từ Database (Ví dụ: const projects = await prisma.project.findMany())
   return NextResponse.json(mockProjects);
 }
 
@@ -17,7 +16,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json(); // Lấy dữ liệu gửi lên từ Frontend
 
-    // Thực tế: Lưu vào Database (Ví dụ: await prisma.project.create({ data: body }))
     const newProject = {
       id: Math.floor(Math.random() * 1000),
       name: body.name,

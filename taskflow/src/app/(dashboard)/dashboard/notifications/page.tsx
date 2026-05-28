@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { AppImage } from "@/components/ui/AppImage";
 
 type NotificationItem = {
   Id: string;
@@ -143,7 +144,7 @@ export default function NotificationsPage() {
               <div className={`${notification.IsRead ? "bg-white" : "bg-blue-50/40"} flex gap-4 p-4 transition-colors hover:bg-slate-50`}>
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-black text-slate-500 ring-1 ring-slate-200">
                   {notification.ActorAvatarUrl ? (
-                    <img src={notification.ActorAvatarUrl} alt={notification.ActorName || "Avatar"} className="h-full w-full object-cover" />
+                    <AppImage src={notification.ActorAvatarUrl} alt={notification.ActorName || "Avatar"} fill className="h-full w-full" imageClassName="object-cover" sizes="40px" />
                   ) : notification.Type === "PRIVATE_MESSAGE" ? (
                     <MessageSquare className="h-5 w-5" />
                   ) : (
