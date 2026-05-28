@@ -1,5 +1,7 @@
 'use client';
 
+import { AppImage } from "@/components/ui/AppImage";
+
 export default function AuthLayout({
   children,
 }: {
@@ -44,10 +46,13 @@ export default function AuthLayout({
             </p>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 p-0.5 shadow-lg">
-                <img
+                <AppImage
                   src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
                   alt="User"
-                  className="w-full h-full rounded-full object-cover border-2 border-[#020617]"
+                  fill
+                  className="w-full h-full rounded-full border-2 border-[#020617]"
+                  imageClassName="object-cover"
+                  sizes="48px"
                 />
               </div>
               <div>

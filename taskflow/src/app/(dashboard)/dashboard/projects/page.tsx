@@ -14,6 +14,33 @@ const CARD_GRADIENTS = [
   { from: "from-amber-500", to: "to-orange-500", bg: "from-amber-50 to-orange-50", ring: "ring-amber-100", text: "text-amber-700", badge: "bg-amber-100 text-amber-700" },
 ];
 
+type CurrentUser = {
+  Id: string;
+  FullName: string | null;
+  SystemRole: string | null;
+};
+
+type ProjectRow = {
+  Id: string;
+  Name: string;
+  Description: string | null;
+  CreatedAt: string | null;
+};
+
+type MembershipWithGroup = {
+  GroupId: string | null;
+  Groups: ProjectRow | null;
+};
+
+type TaskCountRow = {
+  GroupId: string | null;
+};
+
+type MemberCountRow = {
+  GroupId: string | null;
+  UserId: string | null;
+};
+
 function getGradient(index: number) {
   return CARD_GRADIENTS[index % CARD_GRADIENTS.length];
 }
@@ -22,7 +49,7 @@ function getInitials(name: string) {
   return name?.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() || "P";
 }
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr?: string | null) {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
@@ -43,7 +70,7 @@ export default async function ProjectListPage() {
     { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
   );
 
-  let currentUser = null;
+  let currentUser: CurrentUser | null = null;
   const { data: { user: authUser } } = await supabase.auth.getUser();
   if (authUser) {
     const { data: userData } = await supabase
@@ -54,34 +81,62 @@ export default async function ProjectListPage() {
   const role = currentUser?.SystemRole?.toUpperCase();
   const canCreateProject = role === "ADMIN" || role === "MANAGER";
 
-  let projects: any[] = [];
-  let taskCounts: Record<string, number> = {};
+  let projects: ProjectRow[] = [];
+  const taskCounts: Record<string, number> = {};
   let memberCounts: Record<string, number> = {};
+  let totalUniqueMemberCount = 0;
 
   if (role === "ADMIN") {
     const { data } = await supabase.from("Groups").select("*").order("CreatedAt", { ascending: false });
-    if (data) projects = data;
+    if (data) projects = data as ProjectRow[];
   } else if (currentUser) {
     const { data: membersData } = await supabase
       .from("GroupMembers").select("GroupId, Groups(*)").eq("UserId", currentUser.Id);
-    if (membersData) projects = membersData.map((m: any) => m.Groups).filter(Boolean);
+    if (membersData) {
+      const memberships = membersData as unknown as MembershipWithGroup[];
+      projects = Array.from(
+        new Map(
+          memberships
+            .map((m) => m.Groups)
+            .filter((project): project is ProjectRow => Boolean(project))
+            .map((project) => [project.Id, project])
+        ).values()
+      );
+    }
   }
 
   // Fetch task counts and member counts for each project
   if (projects.length > 0) {
-    const ids = projects.map((p: any) => p.Id);
+    const ids = Array.from(new Set(projects.map((p) => p.Id)));
 
     const [{ data: taskData }, { data: memberData }] = await Promise.all([
       supabase.from("Tasks").select("GroupId").in("GroupId", ids).eq("IsDeleted", false),
-      supabase.from("GroupMembers").select("GroupId").in("GroupId", ids),
+      supabase.from("GroupMembers").select("GroupId, UserId").in("GroupId", ids),
     ]);
 
     if (taskData) {
-      taskData.forEach((t: any) => { taskCounts[t.GroupId] = (taskCounts[t.GroupId] || 0) + 1; });
+      (taskData as TaskCountRow[]).forEach((t) => {
+        if (!t.GroupId) return;
+        taskCounts[t.GroupId] = (taskCounts[t.GroupId] || 0) + 1;
+      });
     }
 
     if (memberData) {
-      memberData.forEach((m: any) => { memberCounts[m.GroupId] = (memberCounts[m.GroupId] || 0) + 1; });
+      const membersByProject = new Map<string, Set<string>>();
+      const uniqueMemberIds = new Set<string>();
+
+      (memberData as MemberCountRow[]).forEach((m) => {
+        if (!m.GroupId || !m.UserId) return;
+        if (!membersByProject.has(m.GroupId)) membersByProject.set(m.GroupId, new Set());
+
+        membersByProject.get(m.GroupId)?.add(m.UserId);
+        uniqueMemberIds.add(m.UserId);
+      });
+
+      memberCounts = Object.fromEntries(
+        Array.from(membersByProject.entries()).map(([groupId, userIds]) => [groupId, userIds.size])
+      );
+      totalUniqueMemberCount = uniqueMemberIds.size;
     }
   }
 
@@ -119,7 +174,7 @@ export default async function ProjectListPage() {
           {[
             { label: "Tổng dự án", value: projects.length, icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", color: "text-indigo-600 bg-indigo-50" },
             { label: "Tổng nhiệm vụ", value: Object.values(taskCounts).reduce((a, b) => a + b, 0), icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", color: "text-emerald-600 bg-emerald-50" },
-            { label: "Thành viên", value: Object.values(memberCounts).reduce((a, b) => a + b, 0), icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", color: "text-violet-600 bg-violet-50" },
+            { label: "Thành viên", value: totalUniqueMemberCount, icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", color: "text-violet-600 bg-violet-50" },
           ].map((stat, i) => (
             <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>
@@ -139,7 +194,7 @@ export default async function ProjectListPage() {
       {/* ── Project Grid ───────────────────────────────────────────────────── */}
       {projects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {projects.map((project: any, i: number) => {
+          {projects.map((project, i) => {
             const g = getGradient(i);
             const taskCount = taskCounts[project.Id] || 0;
             const memberCount = memberCounts[project.Id] || 0;

@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createNotification } from "./notification.actions";
 
 // Hàm helper để tạo Supabase Client trong Server Actions
 async function getSupabase() {
@@ -19,6 +20,52 @@ async function getSupabase() {
   );
 }
 
+type ProjectMemberRow = {
+  Role: string | null;
+  UserId: string;
+  Users: {
+    Id: string;
+    FullName: string | null;
+    Email: string | null;
+  } | null;
+};
+
+type UserProfileRow = {
+  UserId: string;
+  AvatarUrl: string | null;
+};
+
+async function getCurrentUserId() {
+  const supabase = await getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const { data } = await supabase
+    .from("Users")
+    .select("Id")
+    .eq("Email", user.email)
+    .maybeSingle();
+
+  return data?.Id ?? null;
+}
+
+async function createProjectInviteNotification(groupId: string, userId: string) {
+  const supabase = await getSupabase();
+  const [{ data: group }, actorId] = await Promise.all([
+    supabase.from("Groups").select("Name").eq("Id", groupId).maybeSingle(),
+    getCurrentUserId(),
+  ]);
+
+  await createNotification({
+    userId,
+    message: `Bạn đã được thêm vào dự án "${group?.Name || "một dự án"}".`,
+    type: "PROJECT_INVITED",
+    groupId,
+    actorId,
+    link: `/dashboard/projects/${groupId}`,
+  });
+}
+
 // Lấy danh sách thành viên trong dự án
 export async function getProjectMembers(groupId: string) {
   const supabase = await getSupabase();
@@ -33,14 +80,19 @@ export async function getProjectMembers(groupId: string) {
   }
 
   if (data && data.length > 0) {
-    const userIds = data.map((m: any) => m.UserId);
+    const memberRows = data as unknown as ProjectMemberRow[];
+    const uniqueMembers = Array.from(
+      new Map(memberRows.map((member) => [member.UserId, member])).values()
+    );
+    const userIds = uniqueMembers.map((m) => m.UserId);
     const { data: profiles } = await supabase
         .from('UserProfiles')
         .select('UserId, AvatarUrl')
         .in('UserId', userIds);
+    const profileRows = (profiles || []) as UserProfileRow[];
     
-    return data.map((m: any) => {
-        const profile = profiles?.find(p => p.UserId === m.UserId);
+    return uniqueMembers.map((m) => {
+        const profile = profileRows.find((p) => p.UserId === m.UserId);
         return {
             Role: m.Role,
             user: {
@@ -62,7 +114,7 @@ export async function inviteMember(groupId: string, email: string) {
     .from("Users")
     .select("Id")
     .eq("Email", email)
-    .single();
+    .maybeSingle();
 
   if (findError || !user) {
     return { success: false, message: "Không tìm thấy tài khoản có email này!" };
@@ -73,7 +125,7 @@ export async function inviteMember(groupId: string, email: string) {
     .select("*")
     .eq("GroupId", groupId)
     .eq("UserId", user.Id)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     return { success: false, message: "Người này đã ở trong dự án rồi!" };
@@ -88,6 +140,8 @@ export async function inviteMember(groupId: string, email: string) {
   if (error) {
     return { success: false, message: "Lỗi khi thêm thành viên: " + error.message };
   }
+
+  await createProjectInviteNotification(groupId, user.Id);
 
   return { success: true, message: "Mời thành công!" };
 }
@@ -117,7 +171,7 @@ export async function inviteMemberById(groupId: string, userId: string) {
     .select("*")
     .eq("GroupId", groupId)
     .eq("UserId", userId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     return { success: false, message: "Người này đã ở trong dự án rồi!" };
@@ -132,6 +186,8 @@ export async function inviteMemberById(groupId: string, userId: string) {
   if (error) {
     return { success: false, message: "Lỗi: " + error.message };
   }
+
+  await createProjectInviteNotification(groupId, userId);
 
   return { success: true, message: "Đã thêm vào dự án!" };
 }
