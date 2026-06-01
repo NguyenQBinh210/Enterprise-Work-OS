@@ -9,6 +9,7 @@ import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher';
 import { createClient } from '@/shared/lib/supabase/client';
 import { AppImage } from '@/shared/components/ui/AppImage';
 import { useLanguage } from '@/shared/lib/i18n/LanguageContext';
+import { LogoutConfirmDialog } from './LogoutConfirmDialog';
 
 type HeaderUser = {
     Id: string;
@@ -23,6 +24,8 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     const [user, setUser] = useState<HeaderUser | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const router = useRouter();
 
     const loadUnreadCount = useCallback(async (userId: string) => {
@@ -84,6 +87,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     }, [loadUnreadCount, supabase, user?.Id]);
 
     const handleLogout = async () => {
+        setIsLoggingOut(true);
         await supabase.auth.signOut();
         router.push('/login');
     };
@@ -213,7 +217,10 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                                 </Link>
                                 <button
                                     type="button"
-                                    onClick={handleLogout}
+                                    onClick={() => {
+                                        setIsDropdownOpen(false);
+                                        setIsLogoutOpen(true);
+                                    }}
                                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
                                 >
                                     <LogOut className="h-4 w-4" />
@@ -224,6 +231,12 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                     )}
                 </div>
             </div>
+            <LogoutConfirmDialog
+                open={isLogoutOpen}
+                loading={isLoggingOut}
+                onCancel={() => setIsLogoutOpen(false)}
+                onConfirm={handleLogout}
+            />
         </header>
     );
 }
