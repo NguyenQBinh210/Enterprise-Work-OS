@@ -1,6 +1,6 @@
 'use client';
 
-import { AppImage } from "@/components/ui/AppImage";
+import { BarChart3, CheckCircle2, Clock3, FolderKanban, MessageSquare, ShieldCheck } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -8,79 +8,85 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-white">
-      {/* Left: Decorative Section */}
-      <div className="hidden lg:flex flex-col justify-between bg-[#020617] text-white p-16 relative overflow-hidden">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-violet-600/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
-        </div>
-
-        {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3 font-black text-3xl tracking-tighter">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+    <div className="grid min-h-screen grid-cols-1 overflow-x-hidden bg-slate-50 lg:grid-cols-[minmax(560px,0.95fr)_minmax(440px,0.8fr)]">
+      <div className="hidden border-r border-slate-200 bg-[linear-gradient(135deg,#07111f_0%,#0f172a_52%,#15345f_100%)] text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-14">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500 text-white shadow-lg shadow-blue-950/40">
+            <FolderKanban className="h-5 w-5" />
           </div>
-          <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">TaskFlow</span>
+          <div>
+            <p className="text-xl font-bold tracking-tight">TaskFlow</p>
+            <p className="text-xs font-medium text-blue-100/80">Enterprise Work OS</p>
+          </div>
         </div>
 
-        {/* Hero Content */}
-        <div className="relative z-10 space-y-10">
+        <div className="max-w-xl space-y-8">
           <div className="space-y-4">
-            <span className="px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-black uppercase tracking-widest">
-              Phiên bản Enterprise 2026
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-50">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Không gian làm việc bảo mật cho đội nhóm
             </span>
-            <h1 className="text-5xl font-black leading-[1.1] tracking-tight">
-              Quản trị vận hành <br /> 
-              <span className="text-indigo-500">Thông minh & Đột phá.</span>
+            <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-tight xl:text-5xl">
+              Quản lý dự án rõ ràng, không rối thông tin.
             </h1>
-          </div>
-          
-          <div className="p-8 bg-white/[0.03] border border-white/5 backdrop-blur-xl rounded-[2rem] space-y-6 shadow-2xl">
-            <p className="text-lg text-slate-300 leading-relaxed font-medium italic">
-              "Hệ điều hành doanh nghiệp thế hệ mới giúp đội ngũ của chúng tôi tăng 40% năng suất lao động chỉ sau 3 tháng triển khai."
+            <p className="max-w-md text-base leading-7 text-blue-50/70">
+              Theo dõi ai đang phụ trách việc gì, nhiệm vụ nào sắp trễ hạn và nhóm cần xử lý gì tiếp theo.
             </p>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 p-0.5 shadow-lg">
-                <AppImage
-                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                  alt="User"
-                  fill
-                  className="w-full h-full rounded-full border-2 border-[#020617]"
-                  imageClassName="object-cover"
-                  sizes="48px"
-                />
-              </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/12 bg-white/[0.08] p-4 shadow-2xl shadow-black/25">
+            <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
               <div>
-                <div className="font-black text-white">Nguyễn Quốc Bình</div>
-                <div className="text-xs text-indigo-400 font-bold uppercase tracking-wider">
-                  CTO @ Enterprise TaskFlow
-                </div>
+                <p className="text-sm font-semibold text-white">Sprint vận hành</p>
+                <p className="text-xs text-blue-50/55">Cập nhật hôm nay</p>
               </div>
+              <span className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                82% đúng hạn
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Việc mở", value: "24", icon: Clock3 },
+                { label: "Hoàn tất", value: "18", icon: CheckCircle2 },
+                { label: "Tin nhắn", value: "9", icon: MessageSquare },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-xl border border-white/10 bg-slate-950/45 p-3">
+                    <Icon className="mb-3 h-4 w-4 text-blue-100/65" />
+                    <p className="text-2xl font-semibold text-white">{item.value}</p>
+                    <p className="text-xs text-blue-50/45">{item.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {["Duyệt luồng nhiệm vụ", "Chốt phạm vi phát hành", "Rà soát lỗi đăng nhập"].map((task, index) => (
+                <div key={task} className="flex items-center justify-between rounded-xl bg-white/[0.06] px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-sky-300" />
+                    <span className="text-sm text-slate-300">{task}</span>
+                  </div>
+                  <span className="text-xs text-blue-50/45">{index + 1}d</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="relative z-10 flex items-center justify-between text-xs font-bold text-slate-500 tracking-widest uppercase">
-          <span>© 2026 TaskFlow Inc.</span>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-white transition-colors">Bảo mật</a>
-            <a href="#" className="hover:text-white transition-colors">Điều khoản</a>
-          </div>
+        <div className="flex items-center justify-between text-xs font-medium text-blue-50/45">
+          <span>TaskFlow</span>
+          <span className="inline-flex items-center gap-2">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Built for daily operations
+          </span>
         </div>
       </div>
 
-      {/* Right: Form Section */}
-      <div className="flex items-center justify-center p-8 bg-slate-50 lg:bg-white relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-[100px] -z-10 opacity-50"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-50 rounded-full blur-[100px] -z-10 opacity-50"></div>
-        
-        <div className="w-full max-w-md animate-fade-in">
+      <div className="flex min-w-0 w-full items-center justify-start overflow-hidden px-5 py-8 sm:justify-center sm:px-8 lg:bg-white">
+        <div className="auth-form-shell min-w-0 animate-fade-in">
           {children}
         </div>
       </div>

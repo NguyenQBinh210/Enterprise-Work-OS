@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f8fb;
+  --foreground: #172033;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #dce3ec;
+  --brand: #334155;
+  --brand-accent: #2563eb;
 }
 
 @theme inline {
@@ -104,8 +109,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f7f8fb;
+    --foreground: #172033;
   }
 }
 
@@ -121,11 +126,26 @@ body {
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
 }
 
+::selection {
+  background: #dbeafe;
+  color: #172033;
+}
+
 button,
 input,
 textarea,
 select {
   font: inherit;
+}
+
+.auth-form-shell {
+  width: min(340px, 100%);
+}
+
+@media (min-width: 1024px) {
+  .auth-form-shell {
+    width: min(420px, 100%);
+  }
 }
 
 /* Custom scrollbar */

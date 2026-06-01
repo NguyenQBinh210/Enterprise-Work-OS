@@ -25,7 +25,7 @@ export function RegisterForm() {
     const result = await registerAccount({ firstName, lastName, email, password });
 
     if (!result.success) {
-      setError(result.error ?? "Không thể đăng ký. Vui lòng thử lại.");
+      setError(result.error ?? "Không thể tạo tài khoản. Vui lòng thử lại.");
       setLoading(false);
       return;
     }
@@ -39,26 +39,30 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-900">Tạo tài khoản mới</h1>
-        <p className="text-slate-500 text-sm mt-2">Bắt đầu trải nghiệm Enterprise Work-OS</p>
+    <div className="space-y-7 animate-slide-up">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+          Tạo tài khoản mới
+        </h1>
+        <p className="text-sm leading-6 text-slate-500">
+          Thiết lập tài khoản để tham gia workspace và theo dõi công việc cùng đội nhóm.
+        </p>
       </div>
 
       <form className="space-y-4" onSubmit={handleRegister}>
         {error && (
-          <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200 delay-100 animate-slide-up">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 delay-100 animate-slide-up">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="p-3 text-sm text-green-700 bg-green-50 rounded-md border border-green-200 delay-100 animate-slide-up">
-            Đăng ký thành công! Đang chuyển hướng...
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-700 delay-100 animate-slide-up">
+            Tạo tài khoản thành công. Đang chuyển hướng...
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Họ"
             placeholder="Nguyễn"
@@ -96,32 +100,26 @@ export function RegisterForm() {
           minLength={6}
         />
 
-        <div className="text-sm text-slate-500">
+        <div className="text-sm leading-6 text-slate-500">
           Bằng việc tạo tài khoản, bạn đồng ý với{" "}
-          <Link href="#" className="text-blue-600 hover:text-blue-500">
+          <Link href="#" className="font-semibold text-slate-800 hover:text-blue-700">
             Điều khoản dịch vụ
-          </Link>
-          {" "}va{" "}
-          <Link href="#" className="text-blue-600 hover:text-blue-500">
+          </Link>{" "}
+          và{" "}
+          <Link href="#" className="font-semibold text-slate-800 hover:text-blue-700">
             Chính sách bảo mật
           </Link>.
         </div>
 
-        <div className="pt-2">
-          <Button
-            type="submit"
-            className="w-full h-11 text-base shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow disabled:opacity-50"
-            disabled={loading || success}
-          >
-            {loading ? "Đang xử lý..." : "Đăng ký ngay"}
-          </Button>
-        </div>
+        <Button type="submit" className="h-11 w-full" disabled={loading || success}>
+          {loading ? "Đang xử lý..." : "Tạo tài khoản"}
+        </Button>
       </form>
 
       <div className="text-center text-sm text-slate-500">
         Đã có tài khoản?{" "}
-        <Link href="/login" className="text-blue-600 hover:text-blue-500 font-medium">
-          Đăng nhập tại đây
+        <Link href="/login" className="font-semibold text-slate-900 underline underline-offset-4 hover:text-blue-700">
+          Đăng nhập
         </Link>
       </div>
     </div>

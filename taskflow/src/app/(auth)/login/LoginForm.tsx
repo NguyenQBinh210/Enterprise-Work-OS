@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Lock, Mail, Shield } from "lucide-react";
+import { ArrowRight, Check, Lock, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loginWithEmailPassword } from "./login.supabase";
 
 export function LoginForm() {
-  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,24 +29,24 @@ export function LoginForm() {
   };
 
   return (
-    <div className="space-y-10">
-      <div className="space-y-3 text-center lg:text-left">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-wider mb-2">
-          <Shield size={14} />
-          Hệ thống bảo mật cao
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          <ShieldCheck size={14} />
+          Không gian làm việc bảo mật
         </div>
-        <h1 className="text-4xl font-black tracking-tighter text-slate-900 lg:text-5xl">
-          {t("auth.welcome_back")}
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+          Chào mừng trở lại
         </h1>
-        <p className="text-slate-500 font-medium text-lg">
-          {t("auth.enter_credentials")}
+        <p className="text-sm leading-6 text-slate-500 sm:text-base">
+          Đăng nhập để tiếp tục quản lý dự án và công việc của nhóm.
         </p>
       </div>
 
-      <form className="space-y-6" onSubmit={handleLogin}>
+      <form className="space-y-5" onSubmit={handleLogin}>
         {error && (
-          <div className="p-4 text-sm font-bold text-rose-600 bg-rose-50 rounded-2xl border border-rose-100 animate-slide-up flex items-center gap-3">
-            <div className="w-2 h-2 bg-rose-600 rounded-full animate-pulse" />
+          <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-700 animate-slide-up">
+            <div className="h-2 w-2 rounded-full bg-rose-600" />
             {error}
           </div>
         )}
@@ -56,89 +54,65 @@ export function LoginForm() {
         <div className="space-y-4">
           <div className="group relative">
             <Input
-              label={t("auth.email")}
+              label="Email"
               type="email"
               placeholder="admin@work.os"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="pl-11 h-14 rounded-2xl border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+              className="h-11 pl-10"
             />
-            <Mail className="absolute left-4 top-[46px] text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
+            <Mail className="absolute left-3 top-[40px] text-slate-400 transition-colors group-focus-within:text-blue-600" size={18} />
           </div>
 
           <div className="group relative">
             <Input
-              label={t("auth.password")}
+              label="Mật khẩu"
               type="password"
               placeholder="********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="pl-11 h-14 rounded-2xl border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+              className="h-11 pl-10"
             />
-            <Lock className="absolute left-4 top-[46px] text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
+            <Lock className="absolute left-3 top-[40px] text-slate-400 transition-colors group-focus-within:text-blue-600" size={18} />
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2 cursor-pointer select-none group">
+        <div className="flex flex-col items-start gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex cursor-pointer select-none items-center gap-2 group">
             <div className="relative flex items-center">
-              <input type="checkbox" className="peer appearance-none w-5 h-5 border-2 border-slate-200 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer" />
-              <Check size={14} className="absolute left-0.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+              <input type="checkbox" className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-slate-300 transition-all checked:border-slate-900 checked:bg-slate-900" />
+              <Check size={12} className="pointer-events-none absolute left-0.5 text-white opacity-0 transition-opacity peer-checked:opacity-100" />
             </div>
-            <span className="text-slate-600 font-bold group-hover:text-indigo-600 transition-colors">{t("auth.remember_me")}</span>
+            <span className="font-medium text-slate-600 transition-colors group-hover:text-slate-900">Ghi nhớ đăng nhập</span>
           </label>
-          <Link href="#" className="text-indigo-600 hover:text-indigo-700 font-black tracking-tight">
-            {t("auth.forgot_password")}
+          <Link href="#" className="font-semibold text-blue-700 hover:text-blue-800">
+            Quên mật khẩu?
           </Link>
         </div>
 
-        <div className="pt-4">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full h-14 text-lg font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-200 hover:shadow-indigo-300 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Đang xác thực...</span>
-              </div>
-            ) : (
-              <>
-                <span>{t("auth.sign_in")}</span>
-                <ArrowRight size={20} />
-              </>
-            )}
-          </Button>
-        </div>
+        <Button type="submit" disabled={loading} className="h-11 w-full">
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              <span>Đang xác thực...</span>
+            </div>
+          ) : (
+            <>
+              <span>Đăng nhập</span>
+              <ArrowRight size={18} />
+            </>
+          )}
+        </Button>
       </form>
 
-      <div className="text-center text-slate-500 font-bold">
-        {t("auth.no_account")}{" "}
-        <Link href="/register" className="text-indigo-600 font-black hover:text-indigo-700 transition-colors underline underline-offset-4 decoration-2 decoration-indigo-100 hover:decoration-indigo-600">
-          {t("auth.sign_up")}
+      <div className="text-center text-sm font-medium text-slate-500">
+        Chưa có tài khoản?{" "}
+        <Link href="/register" className="font-semibold text-slate-900 underline underline-offset-4 hover:text-blue-700">
+          Đăng ký
         </Link>
       </div>
     </div>
-  );
-}
-
-function Check({ size, className }: { size: number; className: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
   );
 }
