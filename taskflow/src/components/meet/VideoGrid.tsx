@@ -1,3 +1,5 @@
+import { AppImage } from "@/components/ui/AppImage";
+
 export default function VideoGrid() {
   const participants = [
     {
@@ -41,9 +43,11 @@ export default function VideoGrid() {
         >
           {/* Avatar / Camera Placeholder */}
           <div className="flex flex-col items-center">
-            <img
+            <AppImage
               src={p.avatar}
               alt={p.name}
+              width={96}
+              height={96}
               className="w-24 h-24 rounded-full mb-4 ring-4 ring-slate-700"
             />
           </div>

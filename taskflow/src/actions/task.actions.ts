@@ -2,6 +2,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createNotification } from "./notification.actions";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -18,10 +19,59 @@ async function getSupabase() {
   );
 }
 
+type TaskAssignmentNotificationRow = {
+  Title: string | null;
+  Status: string | null;
+  GroupId: string | null;
+  Project?: { Name?: string | null } | { Name?: string | null }[] | null;
+};
+
+type TaskStatusUpdate = {
+  Status: string;
+  Position?: number;
+};
+
+type TaskAssigneeRow = {
+  UserId: string;
+  user?: {
+    FullName?: string | null;
+    Email?: string | null;
+    AvatarUrl?: string | null;
+  } | null;
+};
+
+type TaskWithAssignees = Record<string, unknown> & {
+  Assignees?: TaskAssigneeRow[] | null;
+};
+
+type UserProfileRow = {
+  UserId: string;
+  AvatarUrl: string | null;
+};
+
+async function getCurrentUserId() {
+  const supabase = await getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const { data } = await supabase
+    .from("Users")
+    .select("Id")
+    .eq("Email", user.email)
+    .maybeSingle();
+
+  return data?.Id ?? null;
+}
+
+function getProjectName(project: TaskAssignmentNotificationRow["Project"]) {
+  if (Array.isArray(project)) return project[0]?.Name || null;
+  return project?.Name || null;
+}
+
 // Cập nhật trạng thái và vị trí task (Hỗ trợ Fractional Indexing)
 export async function updateTaskStatus(taskId: string, newStatus: string, newPosition?: number) {
   const supabase = await getSupabase();
-  const updateData: any = { Status: newStatus };
+  const updateData: TaskStatusUpdate = { Status: newStatus };
   if (newPosition !== undefined) {
     updateData.Position = newPosition;
   }
@@ -68,10 +118,30 @@ export async function addTaskAssignee(taskId: string, userId: string) {
   }
 
   // 2. Tự động chuyển trạng thái sang IN_PROGRESS nếu đang là TODO
-  const { data: task } = await supabase.from("Tasks").select("Status").eq("Id", taskId).single();
+  const { data: taskData } = await supabase
+    .from("Tasks")
+    .select("Title, Status, GroupId, Project:GroupId(Name)")
+    .eq("Id", taskId)
+    .maybeSingle();
+  const task = taskData as unknown as TaskAssignmentNotificationRow | null;
+
   if (task?.Status === "TODO") {
     await supabase.from("Tasks").update({ Status: "IN_PROGRESS" }).eq("Id", taskId);
   }
+
+  const projectName = getProjectName(task?.Project);
+  const taskTitle = task?.Title || "một nhiệm vụ";
+  const projectText = projectName ? ` trong dự án "${projectName}"` : "";
+
+  await createNotification({
+    userId,
+    message: `Bạn đã được giao nhiệm vụ "${taskTitle}"${projectText}.`,
+    type: "TASK_ASSIGNED",
+    taskId,
+    groupId: task?.GroupId ?? null,
+    actorId: await getCurrentUserId(),
+    link: task?.GroupId ? `/dashboard/projects/${task.GroupId}` : "/dashboard/my-tasks",
+  });
 }
 
 // Xóa người thực hiện nhiệm vụ
@@ -170,7 +240,7 @@ export async function addTaskMessage(taskId: string, senderId: string, content: 
         .from('UserProfiles')
         .select('AvatarUrl')
         .eq('UserId', senderId)
-        .single();
+        .maybeSingle();
     
     return {
         ...data,
@@ -319,9 +389,10 @@ export async function getTasks(groupId: string) {
   }
 
   if (data && data.length > 0) {
+    const tasks = data as unknown as TaskWithAssignees[];
     const userIds = new Set<string>();
-    data.forEach(task => {
-        task.Assignees?.forEach((a: any) => userIds.add(a.UserId));
+    tasks.forEach(task => {
+        task.Assignees?.forEach((a) => userIds.add(a.UserId));
     });
 
     if (userIds.size > 0) {
@@ -329,10 +400,11 @@ export async function getTasks(groupId: string) {
             .from('UserProfiles')
             .select('UserId, AvatarUrl')
             .in('UserId', Array.from(userIds));
+        const profileRows = (profiles || []) as UserProfileRow[];
         
-        return data.map(task => {
-            const newAssignees = task.Assignees?.map((a: any) => {
-                const profile = profiles?.find(p => p.UserId === a.UserId);
+        return tasks.map(task => {
+            const newAssignees = task.Assignees?.map((a) => {
+                const profile = profileRows.find((p) => p.UserId === a.UserId);
                 return {
                     ...a,
                     user: {

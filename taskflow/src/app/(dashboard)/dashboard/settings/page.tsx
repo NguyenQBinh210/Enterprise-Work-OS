@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MOCK_USERS, User } from '@/lib/mock';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { AppImage } from '@/components/ui/AppImage';
 
 export default function SettingsPage() {
     const { t } = useLanguage();
@@ -45,7 +46,7 @@ export default function SettingsPage() {
                                 <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full ring-2 ring-white" />
+                                            <AppImage src={user.avatar} alt={user.name} width={36} height={36} className="w-9 h-9 rounded-full ring-2 ring-white" />
                                             <div>
                                                 <div className="font-medium text-slate-900">{user.name}</div>
                                                 <div className="text-slate-500 text-xs">{user.email}</div>

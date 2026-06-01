@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
+import { AppImage } from "@/components/ui/AppImage";
 
 interface Message {
   id: string;
@@ -94,9 +95,11 @@ export default function ProjectChat() {
               msg.sender.isMe ? "flex-row-reverse" : "flex-row"
             }`}
           >
-            <img
+            <AppImage
               src={msg.sender.avatar}
               alt={msg.sender.name}
+              width={40}
+              height={40}
               className="w-10 h-10 rounded-full ring-2 ring-white"
             />
             <div
