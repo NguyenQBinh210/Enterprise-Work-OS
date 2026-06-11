@@ -304,7 +304,7 @@ export default function Sidebar({
                       : "bg-slate-700 text-slate-300"
                 }`}
               >
-                {role || "USER"}
+                {role || "MEMBER"}
               </span>
             </div>
 

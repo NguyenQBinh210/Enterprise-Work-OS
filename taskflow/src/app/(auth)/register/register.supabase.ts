@@ -42,7 +42,7 @@ export async function registerAccount({
     Id: shortId,
     Email: email,
     FullName: fullName,
-    SystemRole: "USER",
+    SystemRole: "MEMBER",
   });
 
   if (insertError) {

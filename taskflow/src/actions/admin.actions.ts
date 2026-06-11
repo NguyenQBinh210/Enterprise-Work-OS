@@ -35,10 +35,17 @@ export async function getUsers() {
 
 // 2. Cập nhật phân quyền tài khoản
 export async function updateUserRole(userId: string, newRole: string) {
+  const normalizedRole = newRole.toUpperCase();
+  const allowedRoles = ["ADMIN", "MANAGER", "MEMBER", "VIEWER"];
+  if (!allowedRoles.includes(normalizedRole)) {
+    console.error("Vai trò không hợp lệ:", newRole);
+    return false;
+  }
+
   const supabase = await getSupabase();
   const { error } = await supabase
     .from("Users")
-    .update({ SystemRole: newRole.toUpperCase() })
+    .update({ SystemRole: normalizedRole })
     .eq("Id", userId);
 
   if (error) {

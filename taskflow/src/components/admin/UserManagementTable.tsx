@@ -36,8 +36,8 @@ const ROLES = [
     ),
   },
   {
-    value: "USER",
-    label: "User",
+    value: "MEMBER",
+    label: "Member",
     description: "Thành viên thông thường",
     color: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dot: "bg-emerald-500",
@@ -69,7 +69,7 @@ const ROLES = [
   },
 ] as const;
 
-type RoleValue = "ADMIN" | "MANAGER" | "USER" | "VIEWER";
+type RoleValue = "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
 
 function getRoleConfig(roleValue: string) {
   return ROLES.find(r => r.value === roleValue?.toUpperCase()) ?? ROLES[2];
@@ -365,7 +365,7 @@ export default function UserManagementTable() {
                       <td className="px-6 py-4">
                         <RoleDropdown
                           userId={user.Id}
-                          currentRole={user.SystemRole || "USER"}
+                          currentRole={user.SystemRole || "MEMBER"}
                           onRoleChange={handleRoleChange}
                           saving={savingUserId}
                         />

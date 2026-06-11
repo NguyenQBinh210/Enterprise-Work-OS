@@ -5,6 +5,12 @@ import { createNotification } from "@/actions/notification.actions";
 import { createClient } from "@/lib/supabase/client";
 import { readFileAsDataUrl, type ChatMessage, type ChatUser, type UserProfile } from "./messages.helpers";
 
+function getPrivateMessageLink(chatUserId: string, messageId?: string) {
+  const params = new URLSearchParams({ chat: chatUserId });
+  if (messageId) params.set("message", messageId);
+  return `/dashboard/messages?${params.toString()}`;
+}
+
 export async function loadCurrentChatUser(): Promise<ChatUser | null> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -68,7 +74,7 @@ export async function insertPrivateMessage(message: ChatMessage, currentUser: Ch
     actorId: message.SenderId,
     type: "PRIVATE_MESSAGE",
     message: `${currentUser.FullName} đã nhắn: ${message.Content}`,
-    link: `/dashboard/messages?chat=${currentUser.Id}`,
+    link: getPrivateMessageLink(currentUser.Id, message.Id),
   });
 }
 
@@ -93,6 +99,17 @@ export async function deletePrivateMessage(message: ChatMessage) {
   }
 
   await supabase.from("PrivateMessages").delete().eq("Id", message.Id);
+
+  await supabase
+    .from("Notifications")
+    .update({
+      Message: "Tin nhắn này đã bị xóa.",
+      Link: getPrivateMessageLink(message.SenderId),
+    })
+    .eq("UserId", message.ReceiverId)
+    .eq("ActorId", message.SenderId)
+    .eq("Type", "PRIVATE_MESSAGE")
+    .eq("Link", getPrivateMessageLink(message.SenderId, message.Id));
 }
 
 export async function uploadChatWallpaper(file: File) {
@@ -141,7 +158,7 @@ export async function uploadChatFileMessage({
     message: isImage
       ? `${currentUser.FullName} đã gửi cho bạn một hình ảnh.`
       : `${currentUser.FullName} đã gửi cho bạn một tệp đính kèm.`,
-    link: `/dashboard/messages?chat=${currentUser.Id}`,
+    link: getPrivateMessageLink(currentUser.Id, message.Id),
   });
 
   return message;

@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LogOut, X } from 'lucide-react';
 
 type LogoutConfirmDialogProps = {
@@ -10,9 +12,15 @@ type LogoutConfirmDialogProps = {
 };
 
 export function LogoutConfirmDialog({ open, loading = false, onCancel, onConfirm }: LogoutConfirmDialogProps) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
@@ -59,6 +67,7 @@ export function LogoutConfirmDialog({ open, loading = false, onCancel, onConfirm
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

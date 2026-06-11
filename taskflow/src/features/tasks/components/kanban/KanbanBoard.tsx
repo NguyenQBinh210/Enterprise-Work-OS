@@ -15,6 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { toast } from "sonner";
 import { getTasks, updateTaskStatus } from "@/actions/task.actions";
 import { getMyProjectRole } from "@/actions/project.actions";
 import TaskDetailModal from "@/features/tasks/components/detail/TaskDetailModal";
@@ -59,9 +60,22 @@ export default function KanbanBoard({ groupId, currentUser, initialTasks = [] }:
     };
   }, [groupId, loadTasks, supabase, currentUser]);
 
+  const normalizedProjectRole = userRole.toUpperCase();
   const isSystemAdmin = currentUser?.SystemRole?.toUpperCase() === "ADMIN";
-  const canEdit = isSystemAdmin || userRole !== "VIEWER";
-  const canCreate = isSystemAdmin || userRole === "OWNER" || userRole === "MANAGER";
+  const canEdit =
+    isSystemAdmin ||
+    ["OWNER", "MANAGER", "MEMBER"].includes(normalizedProjectRole);
+  const canCreate =
+    isSystemAdmin ||
+    normalizedProjectRole === "OWNER" ||
+    normalizedProjectRole === "MANAGER";
+
+  const canMoveTask = (task: Task | null | undefined) => {
+    if (!task || !currentUser) return false;
+    if (isSystemAdmin || normalizedProjectRole === "OWNER" || normalizedProjectRole === "MANAGER") return true;
+    if (normalizedProjectRole !== "MEMBER") return false;
+    return task.Assignees?.some((assignee) => assignee.UserId === currentUser.Id) ?? false;
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -70,6 +84,11 @@ export default function KanbanBoard({ groupId, currentUser, initialTasks = [] }:
 
   const handleDragStart = (event: DragStartEvent) => {
     const task = tasks.find((t) => t.Id === event.active.id);
+    if (!canMoveTask(task)) {
+      setActiveTask(null);
+      toast.error("Bạn chỉ có thể kéo thả nhiệm vụ được giao cho bạn.");
+      return;
+    }
     setActiveTask(task ?? null);
   };
 
@@ -84,6 +103,9 @@ export default function KanbanBoard({ groupId, currentUser, initialTasks = [] }:
     const isActiveATask = tasks.some((t) => t.Id === activeId);
     const isOverATask = tasks.some((t) => t.Id === overId);
     if (!isActiveATask) return;
+
+    const activeTaskItem = tasks.find((t) => t.Id === activeId);
+    if (!canMoveTask(activeTaskItem)) return;
 
     if (isActiveATask && isOverATask) {
       setTasks((prev) => {
@@ -111,9 +133,16 @@ export default function KanbanBoard({ groupId, currentUser, initialTasks = [] }:
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    if (!over) {
+      setActiveTask(null);
+      return;
+    }
 
     const task = tasks.find((t) => t.Id === active.id);
+    if (!canMoveTask(task)) {
+      setActiveTask(null);
+      return;
+    }
     if (task) await updateTaskStatus(task.Id, task.Status);
     setActiveTask(null);
   };

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { CurrentUser, KanbanColumnConfig, Task } from "./types";
 import { QuickAddTask } from "./QuickAddTask";
@@ -27,9 +28,11 @@ export function KanbanColumn({
   canCreate,
 }: KanbanColumnProps) {
   const Icon = col.icon;
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
 
   return (
     <div
+      ref={setNodeRef}
       className="animate-col-entrance flex w-[86vw] max-w-[380px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:w-[31%] md:min-w-[300px] md:max-w-none"
       style={{ animationDelay: `${colIdx * 60}ms` }}
     >
@@ -54,7 +57,12 @@ export function KanbanColumn({
         </div>
       </div>
 
-      <div className="kanban-scroll min-h-[120px] flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3" id={col.id}>
+      <div
+        className={`kanban-scroll min-h-[120px] flex-1 space-y-3 overflow-y-auto bg-slate-50/50 p-3 transition-colors ${
+          isOver ? "bg-blue-50/80" : ""
+        }`}
+        id={col.id}
+      >
         <SortableContext items={tasks.map((t) => t.Id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task, i) => (
             <TaskCard
