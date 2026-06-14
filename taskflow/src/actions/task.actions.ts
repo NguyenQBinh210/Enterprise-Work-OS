@@ -147,6 +147,13 @@ export async function addTaskAssignee(taskId: string, userId: string) {
 // Xóa người thực hiện nhiệm vụ
 export async function removeTaskAssignee(taskId: string, userId: string) {
   const supabase = await getSupabase();
+  const { data: taskData } = await supabase
+    .from("Tasks")
+    .select("Title, Status, GroupId, Project:GroupId(Name)")
+    .eq("Id", taskId)
+    .maybeSingle();
+  const task = taskData as unknown as TaskAssignmentNotificationRow | null;
+
   const { error } = await supabase
     .from("TaskAssignees")
     .delete()
@@ -157,6 +164,20 @@ export async function removeTaskAssignee(taskId: string, userId: string) {
     console.error("Lỗi xóa người thực hiện:", error);
     throw new Error(error.message);
   }
+
+  const projectName = getProjectName(task?.Project);
+  const taskTitle = task?.Title || "một nhiệm vụ";
+  const projectText = projectName ? ` trong dự án "${projectName}"` : "";
+
+  await createNotification({
+    userId,
+    message: `Bạn đã được gỡ khỏi nhiệm vụ "${taskTitle}"${projectText}.`,
+    type: "TASK_UNASSIGNED",
+    taskId,
+    groupId: task?.GroupId ?? null,
+    actorId: await getCurrentUserId(),
+    link: task?.GroupId ? `/dashboard/projects/${task.GroupId}` : "/dashboard/my-tasks",
+  });
 }
 
 // Lấy danh sách những người đang thực hiện nhiệm vụ

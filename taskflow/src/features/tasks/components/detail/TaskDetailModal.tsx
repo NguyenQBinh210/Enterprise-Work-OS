@@ -53,6 +53,7 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
 
   // DANH SÁCH NGƯỜI THỰC HIỆN
   const [assignees, setAssignees] = useState<any[]>([]);
+  const [assigneeToRemove, setAssigneeToRemove] = useState<{ userId: string; user: any } | null>(null);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -143,9 +144,7 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
     const isAssigned = assignees.some(a => a.UserId === userId);
     try {
         if (isAssigned) {
-          setAssignees(prev => prev.filter(a => a.UserId !== userId));
-          await removeTaskAssignee(task.Id, userId);
-          toast.info(`Đã gỡ ${user.FullName}`);
+          setAssigneeToRemove({ userId, user });
         } else {
           const newAssignee = { UserId: userId, user: user };
           setAssignees(prev => [...prev, newAssignee]);
@@ -155,6 +154,24 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
     } catch (err) {
         toast.error("Lỗi khi thay đổi người thực hiện");
         loadData();
+    }
+  };
+
+  const handleConfirmRemoveAssignee = async () => {
+    if (!assigneeToRemove) return;
+
+    const { userId, user } = assigneeToRemove;
+    setLoading(true);
+    try {
+      setAssignees(prev => prev.filter(a => a.UserId !== userId));
+      await removeTaskAssignee(task.Id, userId);
+      toast.info(`Đã gỡ ${user?.FullName || "thành viên"} khỏi nhiệm vụ`);
+      setAssigneeToRemove(null);
+    } catch (err) {
+      toast.error("Lỗi khi gỡ người thực hiện");
+      loadData();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -218,23 +235,29 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
     } catch (err) { toast.error("Lỗi khi sửa tin nhắn"); }
   };
 
-  const handleDeleteMsg = async (msgId: string) => {
+  const handleConfirmDeleteMsg = async () => {
+    if (!deletingMsgId) return;
+
+    const msgId = deletingMsgId;
     const msgToDelete = messages.find(m => m.Id === msgId);
     if (!msgToDelete) return;
 
-    if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này?")) {
-        try {
-            if (msgToDelete.Content?.startsWith('[IMAGE]') || msgToDelete.Content?.startsWith('[FILE]')) {
-                const parts = msgToDelete.Content.split(']');
-                const urlPart = parts[1].split('|')[0];
-                const { deleteImage } = await import('@/actions/media.actions');
-                await deleteImage(urlPart);
-            }
-            await deleteTaskMessage(msgId);
-            setMessages(prev => prev.filter(m => m.Id !== msgId));
-            setDeletingMsgId(null);
-            toast.success("Đã xóa tin nhắn");
-        } catch (err) { toast.error("Lỗi khi xóa tin nhắn"); }
+    setLoading(true);
+    try {
+        if (msgToDelete.Content?.startsWith('[IMAGE]') || msgToDelete.Content?.startsWith('[FILE]')) {
+            const parts = msgToDelete.Content.split(']');
+            const urlPart = parts[1].split('|')[0];
+            const { deleteImage } = await import('@/actions/media.actions');
+            await deleteImage(urlPart);
+        }
+        await deleteTaskMessage(msgId);
+        setMessages(prev => prev.filter(m => m.Id !== msgId));
+        setDeletingMsgId(null);
+        toast.success("Đã xóa tin nhắn");
+    } catch (err) {
+        toast.error("Lỗi khi xóa tin nhắn");
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -284,6 +307,48 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
             onCancel={() => setIsDeleting(false)}
             onConfirm={handleConfirmDelete}
           />
+        )}
+
+        {assigneeToRemove && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-200 flex items-center justify-center animate-in fade-in zoom-in duration-200">
+            <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-xl max-w-md text-center">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <X className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Gỡ khỏi nhiệm vụ?</h3>
+              <p className="text-slate-500 mb-6 text-sm">
+                {assigneeToRemove.user?.FullName || "Thành viên này"} sẽ không còn là người thực hiện nhiệm vụ này và sẽ nhận được thông báo.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button variant="ghost" onClick={() => setAssigneeToRemove(null)} disabled={loading}>Hủy bỏ</Button>
+                <Button onClick={handleConfirmRemoveAssignee} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white px-8">
+                  Gỡ khỏi nhiệm vụ
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deletingMsgId && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-200 flex items-center justify-center animate-in fade-in zoom-in duration-200">
+            <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-xl max-w-md text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Xóa tin nhắn?</h3>
+              <p className="text-slate-500 mb-6 text-sm">
+                Tin nhắn này sẽ bị xóa khỏi phần thảo luận nhiệm vụ. Hành động này không thể hoàn tác.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button variant="ghost" onClick={() => setDeletingMsgId(null)} disabled={loading}>Hủy bỏ</Button>
+                <Button onClick={handleConfirmDeleteMsg} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white px-8">
+                  Xóa tin nhắn
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* LEFT: Task Detail */}
@@ -474,7 +539,7 @@ export default function TaskDetailModal({ task, groupId, onClose, currentUser, c
                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                             </button>
                                         )}
-                                        <button onClick={() => handleDeleteMsg(msg.Id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl shadow-sm transition-all border border-transparent hover:border-slate-100">
+                                        <button onClick={() => setDeletingMsgId(msg.Id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl shadow-sm transition-all border border-transparent hover:border-slate-100">
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                         </button>
                                     </div>

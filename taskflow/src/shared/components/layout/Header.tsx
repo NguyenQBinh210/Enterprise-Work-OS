@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell, ChevronDown, LogOut, Menu, Settings, UserRound } from 'lucide-react';
+import { toast } from 'sonner';
 import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher';
 import { createClient } from '@/shared/lib/supabase/client';
 import { AppImage } from '@/shared/components/ui/AppImage';
@@ -17,6 +18,28 @@ type HeaderUser = {
     FullName: string;
     AvatarUrl?: string | null;
 };
+
+type NotificationRow = {
+    Id: string;
+    UserId: string;
+    Message: string;
+    Type?: string | null;
+    Link?: string | null;
+};
+
+type NotificationPayload = {
+    eventType: string;
+    new: unknown;
+};
+
+function getNotificationTitle(type?: string | null) {
+    if (type === 'PRIVATE_MESSAGE') return 'Tin nhắn mới';
+    if (type === 'TASK_ASSIGNED') return 'Nhiệm vụ mới';
+    if (type === 'TASK_UNASSIGNED') return 'Cập nhật nhiệm vụ';
+    if (type === 'PROJECT_INVITED') return 'Dự án mới';
+    if (type?.startsWith('TASK_')) return 'Cập nhật nhiệm vụ';
+    return 'Thông báo mới';
+}
 
 export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     const { t } = useLanguage();
@@ -77,14 +100,32 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'Notifications', filter: `UserId=eq.${user.Id}` },
-                () => loadUnreadCount(user.Id)
+                (payload: NotificationPayload) => {
+                    void loadUnreadCount(user.Id);
+
+                    if (payload.eventType !== 'INSERT') return;
+
+                    const notification = payload.new as NotificationRow;
+                    if (!notification?.Message) return;
+
+                    toast(getNotificationTitle(notification.Type), {
+                        description: notification.Message,
+                        duration: 6500,
+                        action: notification.Link
+                            ? {
+                                label: 'Xem',
+                                onClick: () => router.push(notification.Link!),
+                            }
+                            : undefined,
+                    });
+                }
             )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [loadUnreadCount, supabase, user?.Id]);
+    }, [loadUnreadCount, router, supabase, user?.Id]);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
